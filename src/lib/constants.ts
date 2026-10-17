@@ -12,6 +12,7 @@ export const ROUTES = {
   MY_APPROVALS: "/my-approvals",
   PRODUCTS: "/products",
   PRODUCT_CREATE: "/products/create",
+  STOCK: "/stock",
   REQUESTS: "/my-requests",
   CATEGORIES: "/categories",
   BRANDS: "/brands",

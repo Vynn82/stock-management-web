@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { ROUTES } from "@/lib/constants";
 
-export default function RootPage() {
-  redirect(ROUTES.LOGIN);
+export default function HomePage() {
+  redirect("/auth/login");
 }

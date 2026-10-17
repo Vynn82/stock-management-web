@@ -151,8 +151,7 @@ function resolveMenuIcon(
 function normalizePath(rawPath?: string | null): string {
   if (!rawPath || rawPath === "#") return "#";
   const path = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
-  // Alias backend /stock route to /products
-  if (path === "/stock") return ROUTES.PRODUCTS;
+  if (path === "/stock") return "/stock";
   return path;
 }
 

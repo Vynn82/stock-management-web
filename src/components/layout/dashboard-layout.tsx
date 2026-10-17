@@ -13,7 +13,6 @@ function cleanPath(raw?: string | null): string | null {
   if (!raw || raw === "#") return null;
   const clean = raw.split("?")[0].split("#")[0].trim();
   let p = clean.startsWith("/") ? clean : `/${clean}`;
-  if (p === "/stock") p = ROUTES.PRODUCTS;
   if (p.length > 1 && p.endsWith("/")) p = p.slice(0, -1);
   return p;
 }
@@ -23,6 +22,7 @@ function extractAllowedPaths(menus: UserMenuItem[]): Set<string> {
   paths.add(ROUTES.DASHBOARD);
   paths.add("/dashboard");
   paths.add("/");
+  paths.add("/stock");
   paths.add(ROUTES.MY_REQUESTS);
   paths.add("/my-requests");
   paths.add(ROUTES.MY_APPROVALS);
