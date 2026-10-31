@@ -13,6 +13,7 @@ export const ROUTES = {
   PRODUCTS: "/products",
   PRODUCT_CREATE: "/products/create",
   STOCK: "/stock",
+  PURCHASING: "/purchasing",
   REQUESTS: "/my-requests",
   CATEGORIES: "/categories",
   BRANDS: "/brands",

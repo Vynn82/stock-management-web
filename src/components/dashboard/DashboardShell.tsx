@@ -82,7 +82,7 @@ export default function DashboardShell({
   return (
     <>
       <div
-        className={`app-shell ${pathname === "/requests" || pathname.startsWith("/requests/") ? "requests-shell" : ""} ${pathname.startsWith("/manage") ? "manage-shell" : ""} ${pathname.startsWith("/suppliers/") ? "supplier-detail-shell manage-shell" : ""} ${pathname.startsWith("/users") ? "users-shell" : ""} ${pathname.startsWith("/users/invite") ? "users-invite-shell" : ""} ${pathname === "/stock" || pathname.startsWith("/stock") ? "stock-shell" : ""}`}
+        className={`app-shell ${pathname === "/settings" || pathname.startsWith("/settings") ? "settings-shell requests-shell" : ""} ${pathname === "/reports" || pathname.startsWith("/reports") ? "reports-shell requests-shell" : ""} ${pathname === "/purchasing" || pathname.startsWith("/purchasing") ? "purchasing-shell requests-shell" : ""} ${pathname === "/requests" || pathname.startsWith("/requests/") ? "requests-shell" : ""} ${pathname.startsWith("/manage") ? "manage-shell" : ""} ${pathname.startsWith("/suppliers/") ? "supplier-detail-shell manage-shell" : ""} ${pathname.startsWith("/users") ? "users-shell" : ""} ${pathname.startsWith("/users/invite") ? "users-invite-shell" : ""} ${pathname === "/stock" || pathname.startsWith("/stock") ? "stock-shell" : ""}`}
       >
         <aside className={`sidebar ${open ? "open" : ""}`}>
           <div className="brand">
