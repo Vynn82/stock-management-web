@@ -1,97 +1,185 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { ClipboardEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AuthError, requestResetCode, verifyResetCode } from "@/features/auth/auth-flow.api";
+import { RESEND_SECONDS, readResetFlow, writeResetFlow } from "@/features/auth/reset-flow";
+import { Alert, AuthCard, MailIcon, SubmitButton } from "./auth-ui";
 
-const CODE_LENGTH = 6;
+const LENGTH = 6;
 
 export default function VerifyCodePage() {
   const router = useRouter();
-  const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
-  const [message, setMessage] = useState("");
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const [staffId, setStaffId] = useState("");
+  const [sentAt, setSentAt] = useState(0);
+  const [digits, setDigits] = useState<string[]>(Array(LENGTH).fill(""));
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
+  const [now, setNow] = useState(() => Date.now());
+  const refs = useRef<Array<HTMLInputElement | null>>([]);
 
-  function updateDigit(index: number, value: string) {
-    const digits = value.replace(/\D/g, "");
-    if (!digits) {
-      setCode((current) => current.map((digit, digitIndex) => digitIndex === index ? "" : digit));
+  // Come here only after asking for a code.
+  useEffect(() => {
+    const flow = readResetFlow();
+    if (!flow?.staffId) {
+      router.replace("/auth/forgot-password");
       return;
     }
+    setStaffId(flow.staffId);
+    setSentAt(flow.sentAt);
+    refs.current[0]?.focus();
+  }, [router]);
 
-    const pastedDigits = digits.slice(0, CODE_LENGTH - index).split("");
-    setCode((current) => {
-      const next = [...current];
-      pastedDigits.forEach((digit, digitIndex) => { next[index + digitIndex] = digit; });
-      return next;
-    });
-    inputRefs.current[Math.min(index + pastedDigits.length, CODE_LENGTH - 1)]?.focus();
-    setMessage("");
-  }
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
-  function handleKeyDown(index: number, key: string) {
-    if (key === "Backspace" && !code[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    } else if (key === "ArrowLeft" && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    } else if (key === "ArrowRight" && index < CODE_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus();
+  const wait = Math.max(0, Math.ceil((sentAt + RESEND_SECONDS * 1000 - now) / 1000));
+  const code = digits.join("");
+
+  const submit = useCallback(
+    async (value: string) => {
+      if (loading || value.length !== LENGTH || !staffId) return;
+      setLoading(true);
+      setError("");
+      try {
+        const { resetToken } = await verifyResetCode(staffId, value);
+        writeResetFlow({ staffId, sentAt, resetToken });
+        router.push("/auth/reset-password");
+      } catch (err) {
+        setError(err instanceof AuthError ? err.message : "Something went wrong. Please try again.");
+        setDigits(Array(LENGTH).fill(""));
+        setLoading(false);
+        setTimeout(() => refs.current[0]?.focus(), 0);
+      }
+    },
+    [loading, staffId, sentAt, router],
+  );
+
+  function setAt(index: number, value: string) {
+    const clean = value.replace(/\D/g, "");
+    setError("");
+    setInfo("");
+    if (!clean) {
+      setDigits((d) => d.map((x, i) => (i === index ? "" : x)));
+      return;
     }
+    const next = [...digits];
+    clean
+      .slice(0, LENGTH - index)
+      .split("")
+      .forEach((ch, i) => {
+        next[index + i] = ch;
+      });
+    setDigits(next);
+    const last = Math.min(index + clean.length, LENGTH - 1);
+    refs.current[last]?.focus();
+    if (next.every(Boolean)) submit(next.join(""));
   }
 
-  function handleVerify() {
-    router.push("/auth/reset-password");
+  function onKeyDown(index: number, e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Backspace" && !digits[index] && index > 0) refs.current[index - 1]?.focus();
+    else if (e.key === "ArrowLeft" && index > 0) refs.current[index - 1]?.focus();
+    else if (e.key === "ArrowRight" && index < LENGTH - 1) refs.current[index + 1]?.focus();
+  }
+
+  function onPaste(e: ClipboardEvent<HTMLDivElement>) {
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, LENGTH);
+    if (!text) return;
+    e.preventDefault();
+    const next = Array(LENGTH).fill("");
+    text.split("").forEach((ch, i) => {
+      next[i] = ch;
+    });
+    setDigits(next);
+    setError("");
+    refs.current[Math.min(text.length, LENGTH - 1)]?.focus();
+    if (text.length === LENGTH) submit(text);
+  }
+
+  async function resend() {
+    if (wait > 0 || resending || !staffId) return;
+    setResending(true);
+    setError("");
+    try {
+      await requestResetCode(staffId);
+      const t = Date.now();
+      setSentAt(t);
+      setNow(t);
+      writeResetFlow({ staffId, sentAt: t });
+      setDigits(Array(LENGTH).fill(""));
+      setInfo("A new code was sent. Earlier codes no longer work.");
+      refs.current[0]?.focus();
+    } catch (err) {
+      setError(err instanceof AuthError ? err.message : "Could not resend the code.");
+    } finally {
+      setResending(false);
+    }
   }
 
   return (
-    <main className="login-screen">
-      <section className="verify-card" aria-labelledby="verify-title">
-        <Link className="forgot-brand" href="/auth/login" aria-label="StockFlow login">
-          <span className="forgot-brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="m12 3.8 7 4v8.4l-7 4-7-4V7.8l7-4Z" />
-              <path d="m5.3 7.8 6.7 4 6.7-4M12 11.8v8" />
-            </svg>
-          </span>
-          <span>StockFlow</span>
+    <AuthCard
+      icon={<MailIcon />}
+      title="Check your email"
+      subtitle={
+        <>
+          If <strong>{staffId || "your Staff ID"}</strong> has an email on file, we sent a 6-digit code to it. It expires in 10 minutes.
+        </>
+      }
+      footer={
+        <Link className="af-back" href="/auth/forgot-password">
+          <span aria-hidden="true">←</span> Use a different Staff ID
         </Link>
+      }
+    >
+      {error && <Alert tone="error">{error}</Alert>}
+      {info && !error && <Alert tone="success">{info}</Alert>}
 
-        <span className="verify-mail-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <rect x="4.5" y="6.5" width="15" height="11" rx="1.5" />
-            <path d="m5.5 8 6.5 5 6.5-5" />
-          </svg>
-        </span>
-
-        <header className="verify-heading">
-          <h1 id="verify-title">Enter verification code</h1>
-          <p>We sent a 6-digit code to <strong>so***@company.com</strong></p>
-        </header>
-
-        <div className="verify-code" role="group" aria-label="6-digit verification code">
-          {code.map((digit, index) => (
+      <form
+        className="af-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit(code);
+        }}
+      >
+        <div className="af-otp" role="group" aria-label="6-digit verification code" onPaste={onPaste}>
+          {digits.map((d, i) => (
             <input
-              key={index}
-              ref={(element) => { inputRefs.current[index] = element; }}
-              aria-label={`Digit ${index + 1} of ${CODE_LENGTH}`}
-              autoComplete={index === 0 ? "one-time-code" : "off"}
-              className={digit ? "has-digit" : ""}
+              key={i}
+              ref={(el) => {
+                refs.current[i] = el;
+              }}
+              aria-label={`Digit ${i + 1} of ${LENGTH}`}
+              autoComplete={i === 0 ? "one-time-code" : "off"}
               inputMode="numeric"
-              maxLength={CODE_LENGTH}
-              onChange={(event) => updateDigit(index, event.target.value)}
-              onKeyDown={(event) => handleKeyDown(index, event.key)}
-              value={digit}
+              pattern="[0-9]*"
+              maxLength={LENGTH}
+              value={d}
+              disabled={loading}
+              className={d ? "filled" : ""}
+              aria-invalid={Boolean(error) || undefined}
+              onChange={(e) => setAt(i, e.target.value)}
+              onKeyDown={(e) => onKeyDown(i, e)}
+              onFocus={(e) => e.target.select()}
             />
           ))}
         </div>
+        <SubmitButton loading={loading} disabled={code.length !== LENGTH}>
+          {loading ? "Verifying…" : "Verify code"}
+        </SubmitButton>
+      </form>
 
-        <button className="login-submit verify-submit" type="button" onClick={handleVerify}>
-          Verify code
+      <p className="af-resend">
+        Didn&apos;t get it? Check spam, or{" "}
+        <button type="button" onClick={resend} disabled={wait > 0 || resending}>
+          {resending ? "Sending…" : "resend code"}
         </button>
-        {message && <p className="verify-message" role="status">{message}</p>}
-
-        <p className="verify-resend">Didn&apos;t get a code? <button type="button" onClick={() => setMessage("Resending codes isn’t connected yet.")}>Resend</button> in 00:47</p>
-      </section>
-    </main>
+        {wait > 0 && <span> in 0:{String(wait).padStart(2, "0")}</span>}
+      </p>
+    </AuthCard>
   );
 }

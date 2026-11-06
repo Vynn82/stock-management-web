@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { message } from "antd";
-import { getNextStaffId, initialTeamMembers, readInvitedTeamMembers, saveInvitedTeamMember, type TeamRole } from "@/components/users/team-members";
+import { errorText } from "@/components/common/live-state";
+import { fetchRoles, inviteMember, type RoleRow } from "@/features/users/users-live";
+
+type TeamRole = "Admin" | "Manager" | "Staff";
 
 const roleOptions: { role: TeamRole; description: string }[] = [
   { role: "Admin", description: "Full access — can invite any role" },
@@ -18,18 +21,19 @@ export default function InviteTeamMemberPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [staffId, setStaffId] = useState(() => getNextStaffId(initialTeamMembers));
   const [role, setRole] = useState<TeamRole>("Staff");
+  const [roles, setRoles] = useState<RoleRow[]>([]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    try {
-      setStaffId(getNextStaffId([...initialTeamMembers, ...readInvitedTeamMembers()]));
-    } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "Could not load saved team members.");
-    }
+    fetchRoles()
+      .then(setRoles)
+      .catch((error) => messageApi.error(errorText(error, "Could not load roles.")));
   }, [messageApi]);
 
-  function submitInvite(event: FormEvent<HTMLFormElement>) {
+  const roleId = useMemo(() => roles.find((r) => r.name === role.toUpperCase())?.id, [roles, role]);
+
+  async function submitInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const fullName = name.trim();
     const normalizedEmail = email.trim();
@@ -42,24 +46,19 @@ export default function InviteTeamMemberPage() {
       return;
     }
 
+    if (!roleId) {
+      messageApi.error("Roles haven't loaded yet. Please try again in a moment.");
+      return;
+    }
+    const [firstName, ...rest] = fullName.split(/\s+/);
+    setSaving(true);
     try {
-      const existingMembers = [...initialTeamMembers, ...readInvitedTeamMembers()];
-      if (existingMembers.some((member) => member.email.toLowerCase() === normalizedEmail.toLowerCase())) {
-        messageApi.error("A team member with this email already exists.");
-        return;
-      }
-      const invitedMember = {
-        name: fullName,
-        email: normalizedEmail,
-        staffId,
-        role,
-        status: "Invite pending" as const,
-        joined: new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(new Date()),
-      };
-      saveInvitedTeamMember(invitedMember);
+      await inviteMember({ firstName, lastName: rest.join(" ") || firstName, email: normalizedEmail, roleId });
       router.push("/users");
     } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "Could not send this invitation.");
+      messageApi.error(errorText(error, "Could not send this invitation."));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -77,7 +76,7 @@ export default function InviteTeamMemberPage() {
         </div>
         <div className="team-invite-actions">
           <button className="team-invite-cancel" type="button" onClick={() => router.push("/users")}>Cancel</button>
-          <button className="team-invite-submit" type="submit" form="team-invite-form">Send Invite</button>
+          <button className="team-invite-submit" type="submit" form="team-invite-form" disabled={saving}>{saving ? "Sending…" : "Send Invite"}</button>
         </div>
       </header>
       <form className="team-invite-card" id="team-invite-form" onSubmit={submitInvite}>
@@ -108,7 +107,7 @@ export default function InviteTeamMemberPage() {
         <div className="team-invite-field">
           <label htmlFor="invite-staff-id">Staff ID</label>
           <div className="team-invite-staff-id">
-            <input id="invite-staff-id" value={staffId} readOnly aria-readonly="true" />
+            <input id="invite-staff-id" value="Assigned when invited" readOnly aria-readonly="true" />
             <span>Auto-generated</span>
           </div>
         </div>

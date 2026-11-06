@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { downloadCSV } from "./reports-data";
+import { LiveState } from "@/components/common/live-state";
+import { shortDate, usd, useReportData } from "@/features/reports/reports-live";
 
 interface CategoryBar {
   name: string;
@@ -20,78 +22,41 @@ interface WarehouseSegment {
   color: string;
 }
 
-const categoryBars: CategoryBar[] = [
-  {
-    name: "Electronics",
-    value: 96400,
-    formattedValue: "$96,400",
-    percentage: 66,
-    color: "#5b21b6",
-  },
-  {
-    name: "Office",
-    value: 58200,
-    formattedValue: "$58,200",
-    percentage: 40,
-    color: "#7948e6",
-  },
-  {
-    name: "Furniture",
-    value: 52800,
-    formattedValue: "$52,800",
-    percentage: 36,
-    color: "#8b5cf6",
-  },
-  {
-    name: "Cables",
-    value: 41100,
-    formattedValue: "$41,100",
-    percentage: 28,
-    color: "#a78bfa",
-  },
-  {
-    name: "Packaging",
-    value: 36000,
-    formattedValue: "$36,000",
-    percentage: 24.5,
-    color: "#c4b5fd",
-  },
-];
-
-const warehouseSegments: WarehouseSegment[] = [
-  {
-    name: "Phnom Penh Main",
-    percentage: 42,
-    value: 119490,
-    formattedValue: "$119,490",
-    color: "#6320ee",
-  },
-  {
-    name: "Siem Reap",
-    percentage: 26,
-    value: 73970,
-    formattedValue: "$73,970",
-    color: "#8b5cf6",
-  },
-  {
-    name: "Battambang",
-    percentage: 19,
-    value: 54055,
-    formattedValue: "$54,055",
-    color: "#a78bfa",
-  },
-  {
-    name: "Kampong Cham",
-    percentage: 13,
-    value: 36985,
-    formattedValue: "$36,985",
-    color: "#ddd6fe",
-  },
-];
+const CATEGORY_COLORS = ["#5b21b6", "#7948e6", "#8b5cf6", "#a78bfa", "#c4b5fd"];
+const WAREHOUSE_COLORS = ["#6320ee", "#8b5cf6", "#a78bfa", "#ddd6fe"];
+const CIRCUMFERENCE = 2 * Math.PI * 60;
 
 export default function StockValuationPage() {
+  const data = useReportData();
+  const categoryBars: CategoryBar[] = useMemo(() => {
+    const top = data.categories.slice(0, 5);
+    const max = Math.max(1, ...top.map((c) => c.value));
+    return top.map((c, i) => ({
+      name: c.category,
+      value: c.value,
+      formattedValue: usd(c.value),
+      percentage: Math.max(2, (c.value / max) * 100),
+      color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+    }));
+  }, [data.categories]);
+  const warehouseSegments: WarehouseSegment[] = useMemo(() => {
+    const top = data.warehouses.slice(0, 3);
+    const rest = data.warehouses.slice(3);
+    const rows = top.map((w) => ({ name: w.warehouse, value: w.value, percentage: w.percentage }));
+    if (rest.length > 0) {
+      rows.push({
+        name: rest.length === 1 ? rest[0].warehouse : `${rest.length} other warehouses`,
+        value: rest.reduce((s, w) => s + w.value, 0),
+        percentage: Math.round(rest.reduce((s, w) => s + w.percentage, 0) * 10) / 10,
+      });
+    }
+    return rows.map((r, i) => ({ ...r, formattedValue: usd(r.value), color: WAREHOUSE_COLORS[i % WAREHOUSE_COLORS.length] }));
+  }, [data.warehouses]);
+  const skuCount = data.products.length;
+  const avgPerSku = skuCount > 0 ? data.totalValue / skuCount : 0;
+  const total = data.totalValue;
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState("01.08.2026 – 29.08.2026");
+  const [dateRange, setDateRange] = useState(`As of today (${shortDate(new Date())})`);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   function showToast(msg: string) {
@@ -106,42 +71,36 @@ export default function StockValuationPage() {
       "==================================================",
       "STOCKFLOW - STOCK VALUATION REPORT",
       `Period: ${dateRange}`,
-      "Generated: Aug 29, 2026",
+      `Generated: ${shortDate(new Date())}`,
       "==================================================",
       "",
       "KPI SUMMARY",
       "Metric,Value,Change",
-      'Total Value,"$284,500","+5.1%"',
-      'SKUs Tracked,"312","+12"',
-      'Avg. Value per SKU,"$912","no change"',
+      `Total Value,"${usd(total)}"`,
+      `SKUs Tracked,"${skuCount}"`,
+      `Avg. Value per SKU,"${usd(avgPerSku)}"`,
       "",
       "VALUE BY CATEGORY",
       "Category,Inventory Value,Share (%)",
       ...categoryBars.map(
         (c) =>
-          `"${c.name}",${c.value},${((c.value / 284500) * 100).toFixed(1)}%`
+          `"${c.name}",${c.value},${(total > 0 ? (c.value / total) * 100 : 0).toFixed(1)}%`
       ),
-      `"Total",284500,100%`,
+      `"Total",${Math.round(total)},100%`,
       "",
       "VALUE BY WAREHOUSE",
       "Warehouse,Inventory Value,Share (%)",
       ...warehouseSegments.map(
         (w) => `"${w.name}",${w.value},${w.percentage}%`
       ),
-      `"Total",284500,100%`,
+      `"Total",${Math.round(total)},100%`,
     ];
 
     downloadCSV("StockFlow_Stock_Valuation_Report.csv", lines.join("\n"));
     showToast("Stock valuation report exported successfully.");
   }
 
-  const presets = [
-    "01.08.2026 – 29.08.2026",
-    "Last 7 Days (22.08 – 29.08.2026)",
-    "Last 30 Days (30.07 – 29.08.2026)",
-    "Q3 2026 (01.07 – 30.09.2026)",
-    "Year to Date (01.01 – 29.08.2026)",
-  ];
+  const presets = [`As of today (${shortDate(new Date())})`];
 
   return (
     <div className="stock-val-page">
@@ -245,6 +204,7 @@ export default function StockValuationPage() {
         </div>
       </div>
 
+      <LiveState loading={data.loading && !data.loaded} error={data.error} onRetry={data.reload}>
       {/* Top 3 KPI Cards */}
       <div className="stock-val-kpi-grid">
         {/* KPI 1: Total value */}
@@ -266,9 +226,9 @@ export default function StockValuationPage() {
                 <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
               </svg>
             </div>
-            <span className="stock-val-badge green">↑ 5.1%</span>
+            <span className="stock-val-badge gray">{data.warehouses.length} warehouses</span>
           </div>
-          <div className="stock-val-kpi-metric">$284,500</div>
+          <div className="stock-val-kpi-metric">{usd(total)}</div>
           <div className="stock-val-kpi-label">Total value</div>
         </div>
 
@@ -292,9 +252,9 @@ export default function StockValuationPage() {
                 <polyline points="2 12 12 17 22 12" />
               </svg>
             </div>
-            <span className="stock-val-badge green">↑ 12</span>
+            <span className="stock-val-badge gray">{data.totalUnits.toLocaleString("en-US")} units</span>
           </div>
-          <div className="stock-val-kpi-metric">312</div>
+          <div className="stock-val-kpi-metric">{skuCount}</div>
           <div className="stock-val-kpi-label">SKUs tracked</div>
         </div>
 
@@ -318,9 +278,9 @@ export default function StockValuationPage() {
                 <path d="M6 20v-4" />
               </svg>
             </div>
-            <span className="stock-val-badge gray">no change</span>
+            <span className="stock-val-badge gray">on hand</span>
           </div>
-          <div className="stock-val-kpi-metric">$912</div>
+          <div className="stock-val-kpi-metric">{usd(avgPerSku)}</div>
           <div className="stock-val-kpi-label">Avg. value per SKU</div>
         </div>
       </div>
@@ -375,54 +335,23 @@ export default function StockValuationPage() {
 
                 {/* Donut Segments Group (rotated -90deg so it starts at 12 o'clock) */}
                 <g transform="rotate(-90 90 90)">
-                  {/* Segment 1: Phnom Penh Main (42%) */}
-                  <circle
-                    cx="90"
-                    cy="90"
-                    r="60"
-                    fill="none"
-                    stroke="#6320ee"
-                    strokeWidth="22"
-                    strokeDasharray="158.34 376.99"
-                    strokeDashoffset="0"
-                    className="stock-val-donut-segment"
-                  />
-                  {/* Segment 2: Siem Reap (26%) */}
-                  <circle
-                    cx="90"
-                    cy="90"
-                    r="60"
-                    fill="none"
-                    stroke="#8b5cf6"
-                    strokeWidth="22"
-                    strokeDasharray="98.02 376.99"
-                    strokeDashoffset="-158.34"
-                    className="stock-val-donut-segment"
-                  />
-                  {/* Segment 3: Battambang (19%) */}
-                  <circle
-                    cx="90"
-                    cy="90"
-                    r="60"
-                    fill="none"
-                    stroke="#a78bfa"
-                    strokeWidth="22"
-                    strokeDasharray="71.63 376.99"
-                    strokeDashoffset="-256.35"
-                    className="stock-val-donut-segment"
-                  />
-                  {/* Segment 4: Kampong Cham (13%) */}
-                  <circle
-                    cx="90"
-                    cy="90"
-                    r="60"
-                    fill="none"
-                    stroke="#ddd6fe"
-                    strokeWidth="22"
-                    strokeDasharray="49.01 376.99"
-                    strokeDashoffset="-327.98"
-                    className="stock-val-donut-segment"
-                  />
+                  {warehouseSegments.map((seg, i) => {
+                    const len = (seg.percentage / 100) * CIRCUMFERENCE;
+                    const offset = warehouseSegments.slice(0, i).reduce((sum, x) => sum + (x.percentage / 100) * CIRCUMFERENCE, 0);
+                    return (
+                      <circle
+                        key={seg.name}
+                        cx="90"
+                        cy="90"
+                        r="60"
+                        stroke={seg.color}
+                        strokeWidth="22"
+                        strokeDasharray={`${len} ${CIRCUMFERENCE}`}
+                        strokeDashoffset={-offset}
+                        className="stock-val-donut-segment"
+                      />
+                    );
+                  })}
                 </g>
 
                 {/* Center text */}
@@ -432,7 +361,7 @@ export default function StockValuationPage() {
                   textAnchor="middle"
                   className="stock-val-donut-center-val"
                 >
-                  $284.5K
+                  {total >= 1000 ? `$${(total / 1000).toFixed(1)}K` : usd(total)}
                 </text>
                 <text
                   x="90"
@@ -465,6 +394,7 @@ export default function StockValuationPage() {
           </div>
         </div>
       </div>
+      </LiveState>
     </div>
   );
 }

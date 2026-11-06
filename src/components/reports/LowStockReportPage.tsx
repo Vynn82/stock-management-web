@@ -3,210 +3,16 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { downloadCSV } from "./reports-data";
-
-interface LowStockRecord {
-  id: string;
-  name: string;
-  sku: string;
-  category: string;
-  warehouse: string;
-  onHand: number;
-  reorderAt: number;
-  status: "Low Stock" | "Out of Stock";
-}
-
-const lowStockData: LowStockRecord[] = [
-  {
-    id: "ls-1",
-    name: "USB-C Cable 2m",
-    sku: "SKU: USB-C2M-01",
-    category: "Electronics",
-    warehouse: "Siem Reap Branch Warehouse",
-    onHand: 8,
-    reorderAt: 15,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-2",
-    name: "Desk Lamp LED",
-    sku: "SKU: LMP-LED-09",
-    category: "Furniture",
-    warehouse: "Battambang Warehouse",
-    onHand: 0,
-    reorderAt: 10,
-    status: "Out of Stock",
-  },
-  {
-    id: "ls-3",
-    name: "A4 Paper Ream",
-    sku: "SKU: PPR-A4-500",
-    category: "Office",
-    warehouse: "Sihanoukville Warehouse",
-    onHand: 12,
-    reorderAt: 20,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-4",
-    name: "Sticky Notes Pack",
-    sku: "SKU: STK-NTE-02",
-    category: "Office",
-    warehouse: "Phnom Penh Main Warehouse",
-    onHand: 5,
-    reorderAt: 15,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-5",
-    name: "Ballpoint Pen Box",
-    sku: "SKU: PEN-BLU-12",
-    category: "Office",
-    warehouse: "Siem Reap Branch Warehouse",
-    onHand: 0,
-    reorderAt: 10,
-    status: "Out of Stock",
-  },
-  {
-    id: "ls-6",
-    name: "Ergonomic Mouse Pad",
-    sku: "SKU: PAD-ERG-04",
-    category: "Electronics",
-    warehouse: "Phnom Penh Main Warehouse",
-    onHand: 4,
-    reorderAt: 12,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-7",
-    name: "HDMI 2.1 Cable 3m",
-    sku: "SKU: CAB-HD21-03",
-    category: "Electronics",
-    warehouse: "Battambang Warehouse",
-    onHand: 0,
-    reorderAt: 8,
-    status: "Out of Stock",
-  },
-  {
-    id: "ls-8",
-    name: "Permanent Marker Black 12pk",
-    sku: "SKU: MRK-BLK-12",
-    category: "Office",
-    warehouse: "Sihanoukville Warehouse",
-    onHand: 7,
-    reorderAt: 25,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-9",
-    name: "Wireless Keyboard K380",
-    sku: "SKU: KEY-WL-380",
-    category: "Electronics",
-    warehouse: "Siem Reap Branch Warehouse",
-    onHand: 6,
-    reorderAt: 15,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-10",
-    name: "Thermal Transfer Ribbon",
-    sku: "SKU: RBN-THM-11",
-    category: "Packaging",
-    warehouse: "Phnom Penh Main Warehouse",
-    onHand: 9,
-    reorderAt: 30,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-11",
-    name: "Bubble Cushioning Roll 100m",
-    sku: "SKU: BBL-CUS-100",
-    category: "Packaging",
-    warehouse: "Battambang Warehouse",
-    onHand: 3,
-    reorderAt: 10,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-12",
-    name: "Heavy Duty Box Cutter",
-    sku: "SKU: CUT-HD-05",
-    category: "Tools",
-    warehouse: "Sihanoukville Warehouse",
-    onHand: 4,
-    reorderAt: 14,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-13",
-    name: "Standard Shipping Labels 4x6",
-    sku: "SKU: LBL-SHP-46",
-    category: "Packaging",
-    warehouse: "Phnom Penh Main Warehouse",
-    onHand: 11,
-    reorderAt: 40,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-14",
-    name: "Mesh Office Chair Lumbar",
-    sku: "SKU: CHR-LUM-01",
-    category: "Furniture",
-    warehouse: "Siem Reap Branch Warehouse",
-    onHand: 2,
-    reorderAt: 6,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-15",
-    name: "Cable Management Ties 100pk",
-    sku: "SKU: TIE-MGT-100",
-    category: "Electronics",
-    warehouse: "Battambang Warehouse",
-    onHand: 8,
-    reorderAt: 20,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-16",
-    name: "Packing Tape Dispenser",
-    sku: "SKU: DSP-TP-02",
-    category: "Packaging",
-    warehouse: "Sihanoukville Warehouse",
-    onHand: 3,
-    reorderAt: 10,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-17",
-    name: "Stapler Heavy Duty 100-Sheet",
-    sku: "SKU: STP-HD-100",
-    category: "Office",
-    warehouse: "Phnom Penh Main Warehouse",
-    onHand: 2,
-    reorderAt: 8,
-    status: "Low Stock",
-  },
-  {
-    id: "ls-18",
-    name: "Filing Storage Boxes 10pk",
-    sku: "SKU: BOX-FLG-10",
-    category: "Office",
-    warehouse: "Siem Reap Branch Warehouse",
-    onHand: 4,
-    reorderAt: 15,
-    status: "Low Stock",
-  },
-];
-
-const warehousesList = [
-  "All Warehouses",
-  "Siem Reap Branch Warehouse",
-  "Battambang Warehouse",
-  "Sihanoukville Warehouse",
-  "Phnom Penh Main Warehouse",
-];
+import { LiveState } from "@/components/common/live-state";
+import { shortDate, useReportData } from "@/features/reports/reports-live";
 
 export default function LowStockReportPage() {
+  const data = useReportData();
+  const lowStockData = data.lowStock;
+  const warehousesList = useMemo(
+    () => ["All Warehouses", ...Array.from(new Set(lowStockData.map((i) => i.warehouse))).sort()],
+    [lowStockData]
+  );
   const [selectedWarehouse, setSelectedWarehouse] = useState("All Warehouses");
   const [whDropdownOpen, setWhDropdownOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -223,7 +29,7 @@ export default function LowStockReportPage() {
       return lowStockData;
     }
     return lowStockData.filter((i) => i.warehouse === selectedWarehouse);
-  }, [selectedWarehouse]);
+  }, [selectedWarehouse, lowStockData]);
 
   const outOfStockCount = useMemo(() => {
     return filteredItems.filter((i) => i.status === "Out of Stock").length;
@@ -241,13 +47,13 @@ export default function LowStockReportPage() {
       `Warehouse Filter: ${selectedWarehouse}`,
       `Total Items Below Reorder Point: ${filteredItems.length}`,
       `Completely Out of Stock: ${outOfStockCount}`,
-      "Generated: Aug 29, 2026",
+      `Generated: ${shortDate(new Date())}`,
       "==================================================",
       "",
       "PRODUCT,SKU,CATEGORY,WAREHOUSE,ON HAND,REORDER AT,STATUS",
       ...filteredItems.map(
         (i) =>
-          `"${i.name}","${i.sku.replace("SKU: ", "")}","${i.category}","${
+          `"${i.name}","${i.sku}","${i.category}","${
             i.warehouse
           }",${i.onHand},${i.reorderAt},"${i.status}"`
       ),
@@ -442,6 +248,13 @@ export default function LowStockReportPage() {
       </div>
 
       {/* Bottom Table Card */}
+      <LiveState
+        loading={data.loading && !data.loaded}
+        error={data.error}
+        empty={data.loaded && filteredItems.length === 0}
+        emptyText="Nothing is below its reorder point."
+        onRetry={data.reload}
+      >
       <div className="low-stock-table-card">
         <div className="low-stock-table-wrap">
           <table className="low-stock-table">
@@ -460,7 +273,7 @@ export default function LowStockReportPage() {
                 <tr key={item.id}>
                   <td className="col-product">
                     <div className="product-title">{item.name}</div>
-                    <div className="product-sku">{item.sku}</div>
+                    <div className="product-sku">SKU: {item.sku}</div>
                   </td>
                   <td className="col-category">{item.category}</td>
                   <td className="col-warehouse">
@@ -502,6 +315,7 @@ export default function LowStockReportPage() {
           </table>
         </div>
       </div>
+      </LiveState>
     </div>
   );
 }

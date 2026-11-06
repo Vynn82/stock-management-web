@@ -3,34 +3,22 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { ArrowRightOutlined, CheckOutlined, CloseOutlined } from "@ant-design/icons";
-import type { RequestStatus, StockRequest } from "@/components/requests/request-data";
+import { errorText } from "@/components/common/live-state";
+import { commitRequest, timeAgo, type LiveRequest } from "@/features/requests/requests-live";
 
-const products: Record<string, string> = {
-  "REQ-0142": "Wireless Mouse M185",
-  "REQ-0143": "USB-C Charging Hub",
-  "REQ-0141": "Ergonomic Office Chair",
-  "REQ-0140": "A5 Hardcover Notebook",
-  "REQ-0139": "Wireless Headphones",
-  "REQ-0138": "Adjustable Desk Lamp",
-  "REQ-0137": "USB-C Charging Hub",
-};
-
-function getWarehouses(route: string) {
-  const [from, to] = route.split(" → ");
-  return {
-    from: from.endsWith("Warehouse") ? from : `${from} Warehouse`,
-    to: to ? (to.endsWith("Warehouse") ? to : `${to} Warehouse`) : "Stock room",
-  };
+function stepLabel(actionType: string) {
+  return actionType === "CERTIFIER" ? "Certifier" : "Approver";
 }
 
-export default function RequestDetailPage({ request }: { request: StockRequest }) {
-  const [status, setStatus] = useState<RequestStatus>(request.status);
+export default function RequestDetailPage({ request, onChanged }: { request: LiveRequest; onChanged: () => void | Promise<void> }) {
+  const status = request.status;
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const rejectTriggerRef = useRef<HTMLButtonElement>(null);
-  const warehouses = getWarehouses(request.route);
-  const requesterName = `${request.requester} Chan`;
   const isPending = status === "Pending";
+  const waitingFor = request.approvers.find((a) => a.status === "PENDING");
 
   useEffect(() => {
     if (!showRejectDialog) return;
@@ -46,11 +34,24 @@ export default function RequestDetailPage({ request }: { request: StockRequest }
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [showRejectDialog]);
 
+  async function decide(action: "APPROVE" | "REJECT") {
+    setBusy(true);
+    setError("");
+    try {
+      await commitRequest(request.id, action, rejectionReason);
+      setShowRejectDialog(false);
+      await onChanged();
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function rejectRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!rejectionReason.trim()) return;
-    setStatus("Rejected");
-    setShowRejectDialog(false);
+    void decide("REJECT");
   }
 
   return (
@@ -58,7 +59,7 @@ export default function RequestDetailPage({ request }: { request: StockRequest }
       <nav className="request-breadcrumb" aria-label="Breadcrumb">
         <Link href="/requests">Requests</Link>
         <span aria-hidden="true">/</span>
-        <span aria-current="page">{request.id}</span>
+        <span aria-current="page">{request.requestNo}</span>
       </nav>
 
       <div className="request-detail-grid">
@@ -67,29 +68,31 @@ export default function RequestDetailPage({ request }: { request: StockRequest }
             <div className="request-summary-top">
               <span className="request-detail-avatar" aria-hidden="true">{request.requester[0]}</span>
               <div className="request-summary-heading">
-                <h1 id="request-detail-title">Request #{request.id}</h1>
+                <h1 id="request-detail-title">Request #{request.requestNo}</h1>
                 <p>{request.requester} · requested {request.requested}</p>
               </div>
               <span className={`request-status ${status.toLowerCase()}`}>{status}</span>
             </div>
 
-            <div className="request-route-card">
-              <div>
-                <span>From</span>
-                <strong>{warehouses.from}</strong>
+            {request.hasRoute && (
+              <div className="request-route-card">
+                <div>
+                  <span>From</span>
+                  <strong>{request.from}</strong>
+                </div>
+                <ArrowRightOutlined className="request-route-arrow" />
+                <div className="request-route-destination">
+                  <span>To</span>
+                  <strong>{request.to}</strong>
+                </div>
               </div>
-              <ArrowRightOutlined className="request-route-arrow" />
-              <div className="request-route-destination">
-                <span>To</span>
-                <strong>{warehouses.to}</strong>
-              </div>
-            </div>
+            )}
 
             <dl className="request-summary-details">
-              <div><dt>Product</dt><dd>{request.product ?? products[request.id] ?? "Stock item"}</dd></div>
+              <div><dt>Product</dt><dd>{request.productSummary}</dd></div>
               <div><dt>Quantity</dt><dd>{request.quantity} units</dd></div>
-              <div><dt>Type</dt><dd>{request.type === "Transfer" ? "Stock Transfer" : "Stock Out"}</dd></div>
-              {request.notes && <div className="request-summary-notes"><dt>Notes</dt><dd>{request.notes}</dd></div>}
+              <div><dt>Type</dt><dd>{request.typeLabel}</dd></div>
+              {request.remark && <div className="request-summary-notes"><dt>Notes</dt><dd>{request.remark}</dd></div>}
             </dl>
           </section>
 
@@ -100,18 +103,26 @@ export default function RequestDetailPage({ request }: { request: StockRequest }
                 <strong>{request.requester} created this request</strong>
                 <span>{request.requested}</span>
               </li>
-              <li className="complete">
-                <strong>Stock availability confirmed at {warehouses.from}</strong>
-                <span>1 hour ago</span>
-              </li>
-              <li className={isPending ? "current" : "complete"}>
-                <strong>{isPending ? "Awaiting your approval" : `Request ${status.toLowerCase()}`}</strong>
-                <span>{isPending ? "now" : "Updated just now"}</span>
-              </li>
-              {status === "Rejected" && rejectionReason.trim() && (
-                <li className="complete">
-                  <strong>Rejection reason: {rejectionReason.trim()}</strong>
-                  <span>Saved to the request activity log</span>
+              {request.approvers.map((a) => {
+                const done = a.status === "APPROVED" || a.status === "REJECTED";
+                const current = a.status === "PENDING" && isPending;
+                return (
+                  <li key={a.id} className={done ? "complete" : current ? "current" : ""}>
+                    <strong>
+                      {done
+                        ? `${a.name} (${stepLabel(a.actionType)}) ${a.status === "APPROVED" ? "approved" : "rejected"}${a.remark ? `: ${a.remark}` : ""}`
+                        : current
+                          ? `Awaiting ${a.name} (${stepLabel(a.actionType)})`
+                          : `${a.name} (${stepLabel(a.actionType)}) will review next`}
+                    </strong>
+                    <span>{done && a.actionDate ? timeAgo(a.actionDate) : current ? "now" : "Queued"}</span>
+                  </li>
+                );
+              })}
+              {request.approvers.length === 0 && (
+                <li className={isPending ? "current" : "complete"}>
+                  <strong>{isPending ? "Awaiting an approver" : `Request ${status.toLowerCase()}`}</strong>
+                  <span>{isPending ? "now" : ""}</span>
                 </li>
               )}
             </ol>
@@ -121,21 +132,26 @@ export default function RequestDetailPage({ request }: { request: StockRequest }
         <aside className="request-detail-secondary">
           <section className="request-decision-card" aria-labelledby="request-decision-title">
             <h2 id="request-decision-title">Decision</h2>
-            {isPending ? (
+            {isPending && request.canAct ? (
               <div className="request-decision-actions">
-                <button type="button" className="request-decision-approve" onClick={() => setStatus("Approved")}>
-                  <CheckOutlined /> Approve
+                <button type="button" className="request-decision-approve" disabled={busy} onClick={() => decide("APPROVE")}>
+                  <CheckOutlined /> {busy ? "Working…" : "Approve"}
                 </button>
-                <button ref={rejectTriggerRef} type="button" className="request-decision-reject" onClick={() => setShowRejectDialog(true)}>
+                <button ref={rejectTriggerRef} type="button" className="request-decision-reject" disabled={busy} onClick={() => setShowRejectDialog(true)}>
                   <CloseOutlined /> Reject
                 </button>
               </div>
+            ) : isPending ? (
+              <p className="request-decision-result pending">
+                {waitingFor ? `Waiting for ${waitingFor.name} (${stepLabel(waitingFor.actionType)}).` : "Waiting for an approver."}
+              </p>
             ) : (
               <p className={`request-decision-result ${status.toLowerCase()}`}>
                 {status === "Approved" ? <CheckOutlined /> : <CloseOutlined />}
                 This request has been {status.toLowerCase()}.
               </p>
             )}
+            {error && !showRejectDialog && <p className="new-request-error" role="alert">{error}</p>}
           </section>
 
           <section className="request-requester-card" aria-labelledby="requester-card-title">
@@ -143,8 +159,8 @@ export default function RequestDetailPage({ request }: { request: StockRequest }
             <div className="requester-profile">
               <span className="request-detail-avatar" aria-hidden="true">{request.requester[0]}</span>
               <div>
-                <strong>{requesterName}</strong>
-                <span>Warehouse Staff · Phnom Penh</span>
+                <strong>{request.requester}</strong>
+                <span>{request.typeLabel} request</span>
               </div>
             </div>
           </section>
@@ -173,7 +189,7 @@ export default function RequestDetailPage({ request }: { request: StockRequest }
               ×
             </button>
             <span className="reject-dialog-icon" aria-hidden="true"><CloseOutlined /></span>
-            <h2 id="reject-dialog-title">Reject {request.id}?</h2>
+            <h2 id="reject-dialog-title">Reject {request.requestNo}?</h2>
             <p className="reject-dialog-description">
               {request.requester} will be notified. Let them know why this request is being rejected.
             </p>
@@ -190,6 +206,7 @@ export default function RequestDetailPage({ request }: { request: StockRequest }
               placeholder="Explain why this request cannot be approved..."
             />
             <p className="reject-dialog-helper">Saved to the request&apos;s activity log and shared with the requester.</p>
+            {error && <p className="new-request-error" role="alert">{error}</p>}
             <div className="reject-dialog-actions">
               <button
                 className="reject-dialog-cancel"
@@ -201,8 +218,8 @@ export default function RequestDetailPage({ request }: { request: StockRequest }
               >
                 Cancel
               </button>
-              <button className="reject-dialog-submit" type="submit">
-                <CloseOutlined /> Reject Request
+              <button className="reject-dialog-submit" type="submit" disabled={busy}>
+                <CloseOutlined /> {busy ? "Working…" : "Reject Request"}
               </button>
             </div>
           </form>

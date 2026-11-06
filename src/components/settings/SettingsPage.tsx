@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useAuth } from "@/hooks/use-auth";
+import { api, ApiError } from "@/features/live/http";
 
 export type SettingsTab =
   | "general"
@@ -29,29 +31,13 @@ export interface ActiveSession {
   isCurrent: boolean;
 }
 
-const initialSessions: ActiveSession[] = [
-  {
-    id: "sess-1",
-    title: "Chrome on Windows",
-    meta: "Phnom Penh, Cambodia",
-    deviceType: "desktop",
-    isCurrent: true,
-  },
-  {
-    id: "sess-2",
-    title: "Safari on iPhone",
-    meta: "Phnom Penh, Cambodia · Last active 2 hours ago",
-    deviceType: "mobile",
-    isCurrent: false,
-  },
-  {
-    id: "sess-3",
-    title: "Chrome on MacBook",
-    meta: "Siem Reap, Cambodia · Last active 3 days ago",
-    deviceType: "laptop",
-    isCurrent: false,
-  },
-];
+function describeBrowser(): ActiveSession {
+  const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
+  const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "Browser";
+  const os = /Windows/.test(ua) ? "Windows" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Mac OS X/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : "this device";
+  const mobile = /Android|iPhone|iPad/.test(ua);
+  return { id: "current", title: `${browser} on ${os}`, meta: "This device · Active now", deviceType: mobile ? "mobile" : "desktop", isCurrent: true };
+}
 
 export interface InvoiceItem {
   id: string;
@@ -135,16 +121,17 @@ export default function SettingsPage({
   }
 
   // Profile data state
-  const [profile, setProfile] = useState<ProfileData>({
-    fullName: "Visal Khem",
-    email: "visal@stockflow.com",
-    phone: "+855 12 555 019",
-    staffId: "STF-2045",
-    role: "Admin",
-    joined: "14.02.2025",
-    lastLogin: "Today, 9:14 AM",
-    avatarUrl: null,
-  });
+  const { user } = useAuth();
+  const profile: ProfileData = {
+    fullName: user?.name || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "—",
+    email: user?.email || user?.profile?.email || "—",
+    phone: user?.phone || user?.profile?.phone || "—",
+    staffId: user?.staffId || "—",
+    role: user?.role || user?.roles?.[0] || "—",
+    joined: user?.profile?.createdAt ? new Date(user.profile.createdAt).toLocaleDateString("en-GB").replace(/\//g, ".") : "—",
+    lastLogin: "This session",
+    avatarUrl: user?.avatar || user?.profile?.avatar || null,
+  };
 
   // Edit form state
   const [editFullName, setEditFullName] = useState(profile.fullName);
@@ -230,8 +217,8 @@ export default function SettingsPage({
 
   // Security states matching screenshot
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
-  const [sessions, setSessions] = useState<ActiveSession[]>(initialSessions);
-  const [passwordLastChanged, setPasswordLastChanged] = useState("Last changed 3 months ago");
+  const [sessions, setSessions] = useState<ActiveSession[]>([describeBrowser()]);
+  const [passwordLastChanged, setPasswordLastChanged] = useState("Change it regularly to keep your account safe");
 
   // Security Modals
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -251,7 +238,7 @@ export default function SettingsPage({
     showToast("Signed out of all other sessions.");
   }
 
-  function handleSavePassword() {
+  async function handleSavePassword() {
     if (!currPassword) {
       showToast("Please enter your current password.");
       return;
@@ -262,6 +249,12 @@ export default function SettingsPage({
     }
     if (newPassword !== confirmPassword) {
       showToast("New passwords do not match.");
+      return;
+    }
+    try {
+      await api.post("auth/change-password", { currentPassword: currPassword, newPassword });
+    } catch (e) {
+      showToast(e instanceof ApiError && e.message ? e.message : "Couldn't change the password. Check your current password.");
       return;
     }
     setPasswordLastChanged("Last changed just now");
@@ -406,15 +399,8 @@ export default function SettingsPage({
       showToast("Full name cannot be empty.");
       return;
     }
-    setProfile((prev) => ({
-      ...prev,
-      fullName: editFullName.trim(),
-      email: editEmail.trim(),
-      phone: editPhone.trim(),
-      avatarUrl: editAvatarUrl,
-    }));
     setIsEditingProfile(false);
-    showToast("Profile changes saved successfully!");
+    showToast("Profile details are managed by an administrator, so nothing was changed.");
   }
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {

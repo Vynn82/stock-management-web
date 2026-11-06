@@ -1,186 +1,32 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Modal, Drawer, message, Tooltip } from "antd";
 import { EyeOutlined, SearchOutlined } from "@ant-design/icons";
+import {
+  LiveHistoryEntry,
+  LiveStockProduct,
+  LiveWarehouseStock,
+  useLiveStock,
+} from "@/features/stock/stock-live";
+import Can from "@/components/common/Can";
 
-export interface WarehouseStock {
-  warehouse: string;
-  qty: number;
-}
-
-export interface StockProduct {
-  id: string;
-  name: string;
-  sku: string;
-  category: string;
-  warehousesCount: number;
-  onHand: number;
-  status: "Active" | "Low Stock" | "Out of Stock";
-  unitCost: number;
-  reorderPoint: number;
-  warehouses: WarehouseStock[];
-}
-
-export interface StockHistoryEntry {
-  id: string;
-  timestamp: string;
-  type: "Stock In" | "Stock Out" | "Transfer" | "Adjustment";
-  productName: string;
-  sku: string;
-  quantity: number;
-  warehouse: string;
-  destinationWarehouse?: string;
-  reason?: string;
-  user: string;
-}
-
-const WAREHOUSE_LIST = [
-  "Phnom Penh Main",
-  "Siem Reap Branch",
-  "Battambang Depot",
-  "Kampong Cham Central",
-  "Sihanoukville Hub",
-  "Kandal Storage",
-];
-
-const INITIAL_PRODUCTS: StockProduct[] = [
-  {
-    id: "1",
-    name: "Wireless Mouse M185",
-    sku: "WM-M185-BLK",
-    category: "Electronics",
-    warehousesCount: 4,
-    onHand: 76,
-    status: "Active",
-    unitCost: 14.5,
-    reorderPoint: 20,
-    warehouses: [
-      { warehouse: "Phnom Penh Main", qty: 32 },
-      { warehouse: "Siem Reap Branch", qty: 24 },
-      { warehouse: "Battambang Depot", qty: 12 },
-      { warehouse: "Kampong Cham Central", qty: 8 },
-    ],
-  },
-  {
-    id: "2",
-    name: "USB-C Cable 2m",
-    sku: "USB-C2M-01",
-    category: "Electronics",
-    warehousesCount: 3,
-    onHand: 8,
-    status: "Low Stock",
-    unitCost: 6.2,
-    reorderPoint: 15,
-    warehouses: [
-      { warehouse: "Phnom Penh Main", qty: 4 },
-      { warehouse: "Siem Reap Branch", qty: 3 },
-      { warehouse: "Kandal Storage", qty: 1 },
-    ],
-  },
-  {
-    id: "3",
-    name: "A4 Paper Ream",
-    sku: "PPR-A4-500",
-    category: "Office",
-    warehousesCount: 5,
-    onHand: 120,
-    status: "Active",
-    unitCost: 4.8,
-    reorderPoint: 40,
-    warehouses: [
-      { warehouse: "Phnom Penh Main", qty: 50 },
-      { warehouse: "Siem Reap Branch", qty: 30 },
-      { warehouse: "Battambang Depot", qty: 20 },
-      { warehouse: "Kampong Cham Central", qty: 10 },
-      { warehouse: "Sihanoukville Hub", qty: 10 },
-    ],
-  },
-  {
-    id: "4",
-    name: "Desk Lamp LED",
-    sku: "LMP-LED-09",
-    category: "Furniture",
-    warehousesCount: 0,
-    onHand: 0,
-    status: "Out of Stock",
-    unitCost: 28.0,
-    reorderPoint: 10,
-    warehouses: [],
-  },
-  {
-    id: "5",
-    name: "Cardboard Box (M)",
-    sku: "BOX-M-24",
-    category: "Cables & Adapters",
-    warehousesCount: 6,
-    onHand: 312,
-    status: "Active",
-    unitCost: 1.25,
-    reorderPoint: 80,
-    warehouses: [
-      { warehouse: "Phnom Penh Main", qty: 120 },
-      { warehouse: "Siem Reap Branch", qty: 64 },
-      { warehouse: "Battambang Depot", qty: 48 },
-      { warehouse: "Kampong Cham Central", qty: 36 },
-      { warehouse: "Sihanoukville Hub", qty: 24 },
-      { warehouse: "Kandal Storage", qty: 20 },
-    ],
-  },
-];
-
-const INITIAL_HISTORY: StockHistoryEntry[] = [
-  {
-    id: "hist-1",
-    timestamp: "Today, 11:24 AM",
-    type: "Stock In",
-    productName: "A4 Paper Ream",
-    sku: "PPR-A4-500",
-    quantity: 50,
-    warehouse: "Phnom Penh Main",
-    reason: "Supplier shipment PO #8821",
-    user: "Sokha Chan",
-  },
-  {
-    id: "hist-2",
-    timestamp: "Today, 09:40 AM",
-    type: "Transfer",
-    productName: "Wireless Mouse M185",
-    sku: "WM-M185-BLK",
-    quantity: 12,
-    warehouse: "Phnom Penh Main",
-    destinationWarehouse: "Battambang Depot",
-    reason: "Branch replenishment request",
-    user: "Dara Pich",
-  },
-  {
-    id: "hist-3",
-    timestamp: "Yesterday, 04:15 PM",
-    type: "Stock Out",
-    productName: "USB-C Cable 2m",
-    sku: "USB-C2M-01",
-    quantity: 15,
-    warehouse: "Siem Reap Branch",
-    reason: "Dispatched Order #ORD-4491",
-    user: "Leakena Sam",
-  },
-  {
-    id: "hist-4",
-    timestamp: "Yesterday, 02:30 PM",
-    type: "Adjustment",
-    productName: "Desk Lamp LED",
-    sku: "LMP-LED-09",
-    quantity: -3,
-    warehouse: "Phnom Penh Main",
-    reason: "Damaged during warehouse relocation",
-    user: "Vanna Roeun",
-  },
-];
+export type WarehouseStock = LiveWarehouseStock;
+export type StockProduct = LiveStockProduct;
+export type StockHistoryEntry = LiveHistoryEntry;
 
 export default function StockPage() {
-  const [products, setProducts] = useState<StockProduct[]>(INITIAL_PRODUCTS);
-  const [history, setHistory] = useState<StockHistoryEntry[]>(INITIAL_HISTORY);
+  const live = useLiveStock();
+  const { products, history } = live;
+  const WAREHOUSE_LIST = useMemo(() => live.warehouses.map((w) => w.name), [live.warehouses]);
+  const codeOf = (name: string) => live.warehouses.find((w) => w.name === name)?.code ?? "";
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    live.load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedWarehouse, setSelectedWarehouse] = useState("All Warehouses");
   const [selectedStatus, setSelectedStatus] = useState("All Status");
@@ -193,8 +39,8 @@ export default function StockPage() {
 
   // Form states
   const [formProduct, setFormProduct] = useState("");
-  const [formWarehouse, setFormWarehouse] = useState(WAREHOUSE_LIST[0]);
-  const [formTargetWarehouse, setFormTargetWarehouse] = useState(WAREHOUSE_LIST[1]);
+  const [formWarehouse, setFormWarehouse] = useState("");
+  const [formTargetWarehouse, setFormTargetWarehouse] = useState("");
   const [formQuantity, setFormQuantity] = useState<number>(1);
   const [formNewCount, setFormNewCount] = useState<number>(0);
   const [formReason, setFormReason] = useState("");
@@ -225,37 +71,21 @@ export default function StockPage() {
     });
   }, [products, searchQuery, selectedWarehouse, selectedStatus]);
 
-  // Derived KPI Stats matching design
+  // KPI cards — all figures come from the loaded stock.
   const stats = useMemo(() => {
-    // Exact totals from initial screenshot design or calculated dynamically
     const totalVal = products.reduce((acc, p) => acc + p.onHand * p.unitCost, 0);
-    const lowStockCount = products.filter((p) => p.status === "Low Stock").length;
-    const outStockCount = products.filter((p) => p.status === "Out of Stock").length;
-    const activeWarehousesCount = WAREHOUSE_LIST.length;
-
     return {
-      // In design: $284,500 total stock value
-      totalStockValue: "$284,500",
-      totalCalculated: `$${totalVal.toLocaleString()}`,
-      // In design: 18 low stock items
-      lowStockItems: 18 + (lowStockCount > 1 ? lowStockCount - 1 : 0),
-      // In design: 3 out of stock items
-      outOfStock: 3 + (outStockCount > 1 ? outStockCount - 1 : 0),
-      // In design: 6 active warehouses
-      activeWarehouses: activeWarehousesCount,
+      totalStockValue: `$${totalVal.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+      lowStockItems: products.filter((p) => p.status === "Low Stock").length,
+      outOfStock: products.filter((p) => p.status === "Out of Stock").length,
+      activeWarehouses: live.warehouses.length,
     };
-  }, [products]);
-
-  // Status helper function
-  const computeStatus = (onHand: number, reorderPoint: number): "Active" | "Low Stock" | "Out of Stock" => {
-    if (onHand <= 0) return "Out of Stock";
-    if (onHand <= reorderPoint) return "Low Stock";
-    return "Active";
-  };
+  }, [products, live.warehouses]);
 
   // Handlers for action modals
   const handleOpenStockIn = (prod?: StockProduct) => {
     const target = prod || products[0];
+    if (!target) return;
     setFormProduct(target.id);
     setFormWarehouse(target.warehouses[0]?.warehouse || WAREHOUSE_LIST[0]);
     setFormQuantity(10);
@@ -265,6 +95,7 @@ export default function StockPage() {
 
   const handleOpenStockOut = (prod?: StockProduct) => {
     const target = prod || products[0];
+    if (!target) return;
     setFormProduct(target.id);
     setFormWarehouse(target.warehouses[0]?.warehouse || WAREHOUSE_LIST[0]);
     setFormQuantity(1);
@@ -274,6 +105,7 @@ export default function StockPage() {
 
   const handleOpenTransfer = (prod?: StockProduct) => {
     const target = prod || products[0];
+    if (!target) return;
     setFormProduct(target.id);
     setFormWarehouse(target.warehouses[0]?.warehouse || WAREHOUSE_LIST[0]);
     setFormTargetWarehouse(
@@ -287,6 +119,7 @@ export default function StockPage() {
 
   const handleOpenAdjust = (prod?: StockProduct) => {
     const target = prod || products[0];
+    if (!target) return;
     setFormProduct(target.id);
     setFormWarehouse(target.warehouses[0]?.warehouse || WAREHOUSE_LIST[0]);
     const whStock = target.warehouses.find((w) => w.warehouse === formWarehouse)?.qty ?? target.onHand;
@@ -300,231 +133,67 @@ export default function StockPage() {
     setActiveModal("detail");
   };
 
-  // Execute Stock In
+  // Runs one stock action against the API, then reloads the stock.
+  const run = async (action: () => Promise<void>, success: string) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await action();
+      messageApi.success(success);
+      setActiveModal("none");
+    } catch (err) {
+      messageApi.error(err instanceof Error ? err.message : "Could not save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const executeStockIn = () => {
-    if (formQuantity <= 0) {
-      messageApi.error("Quantity must be greater than zero.");
-      return;
-    }
     const product = products.find((p) => p.id === formProduct);
-    if (!product) return;
-
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id !== formProduct) return p;
-        const exists = p.warehouses.some((w) => w.warehouse === formWarehouse);
-        const updatedWarehouses = exists
-          ? p.warehouses.map((w) =>
-              w.warehouse === formWarehouse ? { ...w, qty: w.qty + formQuantity } : w
-            )
-          : [...p.warehouses, { warehouse: formWarehouse, qty: formQuantity }];
-        const newOnHand = p.onHand + formQuantity;
-        return {
-          ...p,
-          onHand: newOnHand,
-          warehouses: updatedWarehouses,
-          warehousesCount: updatedWarehouses.filter((w) => w.qty > 0).length,
-          status: computeStatus(newOnHand, p.reorderPoint),
-        };
-      })
+    if (!product) return messageApi.error("Choose a product.");
+    if (!formQuantity || formQuantity <= 0) return messageApi.error("Quantity must be greater than zero.");
+    return run(
+      () => live.stockIn(product, codeOf(formWarehouse), formQuantity, formReason),
+      `Added ${formQuantity} units of ${product.name} to ${formWarehouse}.`,
     );
-
-    setHistory((prev) => [
-      {
-        id: `hist-${Date.now()}`,
-        timestamp: "Just now",
-        type: "Stock In",
-        productName: product.name,
-        sku: product.sku,
-        quantity: formQuantity,
-        warehouse: formWarehouse,
-        reason: formReason || "Stock In shipment",
-        user: "Admin User",
-      },
-      ...prev,
-    ]);
-
-    messageApi.success(`Added ${formQuantity} units of ${product.name} to ${formWarehouse}.`);
-    setActiveModal("none");
   };
 
-  // Execute Stock Out
   const executeStockOut = () => {
-    if (formQuantity <= 0) {
-      messageApi.error("Quantity must be greater than zero.");
-      return;
-    }
     const product = products.find((p) => p.id === formProduct);
-    if (!product) return;
-
-    const currentWarehouseStock =
-      product.warehouses.find((w) => w.warehouse === formWarehouse)?.qty || 0;
-
-    if (formQuantity > currentWarehouseStock) {
-      messageApi.error(
-        `Insufficient stock! ${formWarehouse} only has ${currentWarehouseStock} units available.`
-      );
-      return;
+    if (!product) return messageApi.error("Choose a product.");
+    if (!formQuantity || formQuantity <= 0) return messageApi.error("Quantity must be greater than zero.");
+    const available = product.warehouses.find((w) => w.warehouse === formWarehouse)?.qty || 0;
+    if (formQuantity > available) {
+      return messageApi.error(`Insufficient stock! ${formWarehouse} only has ${available} units available.`);
     }
-
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id !== formProduct) return p;
-        const updatedWarehouses = p.warehouses.map((w) =>
-          w.warehouse === formWarehouse ? { ...w, qty: w.qty - formQuantity } : w
-        );
-        const newOnHand = Math.max(0, p.onHand - formQuantity);
-        return {
-          ...p,
-          onHand: newOnHand,
-          warehouses: updatedWarehouses,
-          warehousesCount: updatedWarehouses.filter((w) => w.qty > 0).length,
-          status: computeStatus(newOnHand, p.reorderPoint),
-        };
-      })
+    return run(
+      () => live.stockOut(product, codeOf(formWarehouse), formQuantity, formReason),
+      `Dispatched ${formQuantity} units of ${product.name} from ${formWarehouse}.`,
     );
-
-    setHistory((prev) => [
-      {
-        id: `hist-${Date.now()}`,
-        timestamp: "Just now",
-        type: "Stock Out",
-        productName: product.name,
-        sku: product.sku,
-        quantity: -formQuantity,
-        warehouse: formWarehouse,
-        reason: formReason || "Stock Out dispatch",
-        user: "Admin User",
-      },
-      ...prev,
-    ]);
-
-    messageApi.success(`Dispatched ${formQuantity} units of ${product.name} from ${formWarehouse}.`);
-    setActiveModal("none");
   };
 
-  // Execute Transfer
   const executeTransfer = () => {
-    if (formWarehouse === formTargetWarehouse) {
-      messageApi.error("Source and destination warehouses cannot be the same.");
-      return;
-    }
-    if (formQuantity <= 0) {
-      messageApi.error("Transfer quantity must be greater than zero.");
-      return;
-    }
     const product = products.find((p) => p.id === formProduct);
-    if (!product) return;
-
-    const sourceStock =
-      product.warehouses.find((w) => w.warehouse === formWarehouse)?.qty || 0;
-
-    if (formQuantity > sourceStock) {
-      messageApi.error(
-        `Insufficient stock at ${formWarehouse}! Only ${sourceStock} units available to transfer.`
-      );
-      return;
+    if (!product) return messageApi.error("Choose a product.");
+    if (formWarehouse === formTargetWarehouse) return messageApi.error("Source and destination warehouses cannot be the same.");
+    if (!formQuantity || formQuantity <= 0) return messageApi.error("Transfer quantity must be greater than zero.");
+    const available = product.warehouses.find((w) => w.warehouse === formWarehouse)?.qty || 0;
+    if (formQuantity > available) {
+      return messageApi.error(`Insufficient stock at ${formWarehouse}! Only ${available} units available to transfer.`);
     }
-
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id !== formProduct) return p;
-        // Deduct from source
-        let list = p.warehouses.map((w) =>
-          w.warehouse === formWarehouse ? { ...w, qty: w.qty - formQuantity } : w
-        );
-        // Add to destination
-        const destExists = list.some((w) => w.warehouse === formTargetWarehouse);
-        if (destExists) {
-          list = list.map((w) =>
-            w.warehouse === formTargetWarehouse
-              ? { ...w, qty: w.qty + formQuantity }
-              : w
-          );
-        } else {
-          list.push({ warehouse: formTargetWarehouse, qty: formQuantity });
-        }
-        return {
-          ...p,
-          warehouses: list,
-          warehousesCount: list.filter((w) => w.qty > 0).length,
-        };
-      })
+    return run(
+      () => live.transfer(product, codeOf(formWarehouse), codeOf(formTargetWarehouse), formQuantity, formReason),
+      `Transferred ${formQuantity} units of ${product.name} from ${formWarehouse} to ${formTargetWarehouse}.`,
     );
-
-    setHistory((prev) => [
-      {
-        id: `hist-${Date.now()}`,
-        timestamp: "Just now",
-        type: "Transfer",
-        productName: product.name,
-        sku: product.sku,
-        quantity: formQuantity,
-        warehouse: formWarehouse,
-        destinationWarehouse: formTargetWarehouse,
-        reason: formReason || "Warehouse transfer",
-        user: "Admin User",
-      },
-      ...prev,
-    ]);
-
-    messageApi.success(
-      `Transferred ${formQuantity} units of ${product.name} from ${formWarehouse} to ${formTargetWarehouse}.`
-    );
-    setActiveModal("none");
   };
 
-  // Execute Adjustment
   const executeAdjustment = () => {
     const product = products.find((p) => p.id === formProduct);
-    if (!product) return;
-
-    const currentWhQty =
-      product.warehouses.find((w) => w.warehouse === formWarehouse)?.qty || 0;
-    const variance = formNewCount - currentWhQty;
-
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id !== formProduct) return p;
-        const exists = p.warehouses.some((w) => w.warehouse === formWarehouse);
-        let list: WarehouseStock[];
-        if (exists) {
-          list = p.warehouses.map((w) =>
-            w.warehouse === formWarehouse ? { ...w, qty: Math.max(0, formNewCount) } : w
-          );
-        } else {
-          list = [...p.warehouses, { warehouse: formWarehouse, qty: Math.max(0, formNewCount) }];
-        }
-        const newTotal = list.reduce((acc, w) => acc + w.qty, 0);
-        return {
-          ...p,
-          onHand: newTotal,
-          warehouses: list,
-          warehousesCount: list.filter((w) => w.qty > 0).length,
-          status: computeStatus(newTotal, p.reorderPoint),
-        };
-      })
+    if (!product) return messageApi.error("Choose a product.");
+    return run(
+      () => live.setCount(product, codeOf(formWarehouse), formNewCount, formReason),
+      `Stock level for ${product.name} adjusted to ${formNewCount} units at ${formWarehouse}.`,
     );
-
-    setHistory((prev) => [
-      {
-        id: `hist-${Date.now()}`,
-        timestamp: "Just now",
-        type: "Adjustment",
-        productName: product.name,
-        sku: product.sku,
-        quantity: variance,
-        warehouse: formWarehouse,
-        reason: `${formReason || "Physical inventory adjustment"} (${variance >= 0 ? "+" : ""}${variance})`,
-        user: "Admin User",
-      },
-      ...prev,
-    ]);
-
-    messageApi.success(
-      `Stock level for ${product.name} adjusted to ${formNewCount} units at ${formWarehouse}.`
-    );
-    setActiveModal("none");
   };
 
   return (
@@ -565,7 +234,7 @@ export default function StockPage() {
           </Link>
 
           {/* Stock In */}
-          <button
+          <Can any={"STOCK_ADJUST"}><button
             type="button"
             className="stock-action-btn"
             onClick={() => handleOpenStockIn()}
@@ -584,10 +253,10 @@ export default function StockPage() {
               <polyline points="5 12 12 5 19 12" />
             </svg>
             <span>Stock In</span>
-          </button>
+          </button></Can>
 
           {/* Stock Out */}
-          <Link
+          <Can any={"STOCK_ADJUST"}><Link
             href="/stock/stock-out"
             className="stock-action-btn"
             style={{ textDecoration: "none" }}
@@ -606,10 +275,10 @@ export default function StockPage() {
               <polyline points="19 12 12 19 5 12" />
             </svg>
             <span>Stock Out</span>
-          </Link>
+          </Link></Can>
 
           {/* Transfer */}
-          <Link
+          <Can any={"STOCK_TRANSFER"}><Link
             href="/stock/transfer"
             className="stock-action-btn"
             style={{ textDecoration: "none" }}
@@ -630,10 +299,10 @@ export default function StockPage() {
               <path d="M21 13v2a4 4 0 0 1-4 4H3" />
             </svg>
             <span>Transfer</span>
-          </Link>
+          </Link></Can>
 
           {/* Adjust - Solid Purple Button */}
-          <Link
+          <Can any={"STOCK_ADJUST"}><Link
             href="/stock/adjust"
             className="stock-action-btn-primary"
             style={{ textDecoration: "none" }}
@@ -659,7 +328,30 @@ export default function StockPage() {
               <line x1="17" y1="16" x2="23" y2="16" />
             </svg>
             <span>Adjust</span>
-          </Link>
+          </Link></Can>
+
+          {/* Reconcile: count on the shelf vs system */}
+          <Can any={"STOCK_ADJUST"}><Link
+            href="/stock/reconcile"
+            className="stock-action-btn"
+            style={{ textDecoration: "none" }}
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#8B5CF6"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.5 9a9 9 0 0 1 14.8-3.4L23 10M1 14l4.7 4.4A9 9 0 0 0 20.5 15" />
+            </svg>
+            <span>Reconcile</span>
+          </Link></Can>
         </div>
       </div>
 
@@ -684,7 +376,6 @@ export default function StockPage() {
                 <line x1="12" y1="22.08" x2="12" y2="12" />
               </svg>
             </div>
-            <span className="stock-kpi-badge green">↑ 2.4%</span>
           </div>
           <div className="stock-kpi-value">{stats.totalStockValue}</div>
           <div className="stock-kpi-label">Total stock value</div>
@@ -734,7 +425,6 @@ export default function StockPage() {
                 <line x1="9" y1="9" x2="15" y2="15" />
               </svg>
             </div>
-            <span className="stock-kpi-badge red">↑ 1</span>
           </div>
           <div className="stock-kpi-value">{stats.outOfStock}</div>
           <div className="stock-kpi-label">Out of stock</div>
@@ -758,7 +448,6 @@ export default function StockPage() {
                 <polyline points="9 22 9 12 15 12 15 22" />
               </svg>
             </div>
-            <span className="stock-kpi-badge muted">no change</span>
           </div>
           <div className="stock-kpi-value">{stats.activeWarehouses}</div>
           <div className="stock-kpi-label">Active warehouses</div>
@@ -823,7 +512,13 @@ export default function StockPage() {
             {filteredProducts.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ textAlign: "center", padding: "48px 24px", color: "#6b7280" }}>
-                  No stock items match your search or filter criteria.
+                  {live.loading && !live.loaded
+                    ? "Loading stock…"
+                    : live.error
+                      ? live.error
+                      : products.length === 0
+                        ? "No stock yet. Create a product to get started."
+                        : "No stock items match your search or filter criteria."}
                 </td>
               </tr>
             ) : (
@@ -1747,30 +1442,30 @@ export default function StockPage() {
 
             {/* Quick Actions */}
             <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-              <button
+              <Can any={"STOCK_ADJUST"}><button
                 type="button"
                 className="stock-action-btn"
                 style={{ flex: 1, justifyContent: "center" }}
                 onClick={() => handleOpenStockIn(selectedProduct)}
               >
                 + Stock In
-              </button>
-              <button
+              </button></Can>
+              <Can any={"STOCK_TRANSFER"}><button
                 type="button"
                 className="stock-action-btn"
                 style={{ flex: 1, justifyContent: "center" }}
                 onClick={() => handleOpenTransfer(selectedProduct)}
               >
                 ⇄ Transfer
-              </button>
-              <button
+              </button></Can>
+              <Can any={"STOCK_ADJUST"}><button
                 type="button"
                 className="stock-action-btn-primary"
                 style={{ flex: 1, justifyContent: "center" }}
                 onClick={() => handleOpenAdjust(selectedProduct)}
               >
                 ⚙ Adjust
-              </button>
+              </button></Can>
             </div>
           </div>
         )}

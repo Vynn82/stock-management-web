@@ -1,5 +1,6 @@
 "use client";
 
+import StockFlowLogo from "@/components/common/StockFlowLogo";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -237,7 +238,7 @@ export function Sidebar() {
       }}
     >
       <div className="brand" style={{ marginBottom: 32, paddingLeft: 8 }}>
-        <div className="brand-mark">S</div>
+        <StockFlowLogo size={30} />
         <div className="brand-name" style={{ color: "var(--text-main)" }}>
           StockFlow
         </div>

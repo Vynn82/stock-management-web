@@ -12,6 +12,7 @@ import { Product } from "@/types/inventory";
 import { useProductsStore } from "@/store/productsStore";
 import { useTheme, ThemeMode } from "@/providers/ThemeProvider";
 import CategoriesPage from "@/components/categories/CategoriesPage";
+import ProductsPage from "@/components/products/ProductsPage";
 import AddProductPage from "@/components/products/AddProductPage";
 
 const config: Record<
@@ -82,6 +83,7 @@ export default function DataPage({ section }: { section: string }) {
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
   if (section === "manage/categories") return <CategoriesPage />;
+  if (section === "products") return <ProductsPage />;
   if (section === "products/create" || section === "products/add") {
     return (
       <AddProductPage

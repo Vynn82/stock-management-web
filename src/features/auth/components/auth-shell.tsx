@@ -1,3 +1,4 @@
+import StockFlowLogo from "@/components/common/StockFlowLogo";
 import React from "react";
 import Image from "next/image";
 
@@ -13,7 +14,7 @@ export function AuthShell({ children, monkeyClosed }: AuthShellProps) {
       <span className="orb two" />
       <section className="auth-card">
         <div className="brand">
-          <div className="brand-mark">S</div>
+          <StockFlowLogo size={30} />
           <div className="brand-name">Stock Management</div>
         </div>
 

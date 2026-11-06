@@ -1,77 +1,79 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckOutlined } from "@ant-design/icons";
-import {
-  PurchaseOrder,
-  getPurchaseOrderById,
-  updatePurchaseOrderStatus,
-} from "./purchasing-data";
+import { LiveState, errorText } from "@/components/common/live-state";
+import { fetchPurchaseOrder, receivePo, type PoDetail } from "@/features/purchasing/purchasing-live";
 
 interface ReceiveGoodsPageProps {
   poId: string;
 }
 
-interface ReceiveLineItem {
-  product: string;
-  orderedQty: number;
-  receivedQty: number;
-}
-
 export default function ReceiveGoodsPage({ poId }: ReceiveGoodsPageProps) {
   const router = useRouter();
-  const [order, setOrder] = useState<PurchaseOrder | null>(() => getPurchaseOrderById(poId) ?? null);
+  const [order, setOrder] = useState<PoDetail | null>(null);
+  const [qty, setQty] = useState<Record<string, number>>({});
+  const [notes, setNotes] = useState("");
+  const [notesEdited, setNotesEdited] = useState(false);
+  const [reasons, setReasons] = useState<Record<string, "NOT_ARRIVED" | "DAMAGED" | "WRONG_ITEM">>({});
+  const [rating, setRating] = useState(0);
+  const [closeAfter, setCloseAfter] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notFound, setNotFound] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
-  useEffect(() => {
-    const found = getPurchaseOrderById(poId);
-    if (found) {
-      setOrder(found);
+  const load = useCallback(async () => {
+    setError("");
+    try {
+      const po = await fetchPurchaseOrder(poId);
+      setOrder(po);
+      // Start with everything that is still to come.
+      setQty(Object.fromEntries(po.items.map((i) => [i.id, i.remainingQuantity])));
+    } catch (e) {
+      if ((e as { status?: number }).status === 404) setNotFound(true);
+      else setError(errorText(e, "Couldn't load this purchase order."));
+    } finally {
+      setLoading(false);
     }
   }, [poId]);
 
-  // Initial receive items based on the screenshot:
-  // If the order has items, use them; for PO-2041 or TechEdge, match the exact items from the screenshot
-  const [receiveItems, setReceiveItems] = useState<ReceiveLineItem[]>(() => {
-    const found = getPurchaseOrderById(poId);
-    if (found && found.lineItems && found.lineItems.length > 0) {
-      // Check if it already has USB-C Cable or if we can use order's items
-      const hasUsb = found.lineItems.some((i) => i.product.includes("USB-C"));
-      if (hasUsb) {
-        return found.lineItems.map((i) => ({
-          product: i.product,
-          orderedQty: i.qty,
-          receivedQty: i.product.includes("USB-C") ? Math.max(0, i.qty - 40) : i.qty,
-        }));
-      }
-    }
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-    // Default matching screenshot
-    return [
-      { product: "Wireless Mouse M185", orderedQty: 200, receivedQty: 200 },
-      { product: "USB-C Cable 2m", orderedQty: 500, receivedQty: 460 },
-      { product: "HDMI Cable 1.5m", orderedQty: 150, receivedQty: 150 },
-    ];
-  });
-
-  const [discrepancyNotes, setDiscrepancyNotes] = useState(
-    "USB-C Cable 2m short by 40 units — supplier notified, remainder expected next shipment.",
+  const breadcrumb = (
+    <nav className="po-detail-breadcrumb" aria-label="Breadcrumb">
+      <Link href="/purchasing" className="po-detail-breadcrumb-link">
+        Purchase Orders
+      </Link>
+      <span className="po-detail-breadcrumb-sep">/</span>
+      {order ? (
+        <Link href={`/purchasing/${order.id}`} className="po-detail-breadcrumb-link">
+          {order.poNumber}
+        </Link>
+      ) : (
+        <span className="po-detail-breadcrumb-curr">{poId}</span>
+      )}
+      {order && (
+        <>
+          <span className="po-detail-breadcrumb-sep">/</span>
+          <span className="po-detail-breadcrumb-curr">Receive</span>
+        </>
+      )}
+    </nav>
   );
 
-  if (!order) {
+  if (notFound) {
     return (
       <div className="purchasing-page">
-        <nav className="po-detail-breadcrumb" aria-label="Breadcrumb">
-          <Link href="/purchasing" className="po-detail-breadcrumb-link">
-            Purchase Orders
-          </Link>
-          <span className="po-detail-breadcrumb-sep">/</span>
-          <span className="po-detail-breadcrumb-curr">{poId}</span>
-        </nav>
+        {breadcrumb}
         <div className="po-not-found-card">
           <h2>Purchase Order Not Found</h2>
-          <p>The purchase order &quot;{poId}&quot; could not be found.</p>
+          <p>This purchase order could not be found.</p>
           <Link href="/purchasing" className="po-back-btn">
             Back to Purchase Orders
           </Link>
@@ -80,131 +82,144 @@ export default function ReceiveGoodsPage({ poId }: ReceiveGoodsPageProps) {
     );
   }
 
-  const supplierName =
-    order.supplier === "PaperCo Supplies"
-      ? "TechEdge Distribution"
-      : order.supplier || "TechEdge Distribution";
+  if (!order) {
+    return (
+      <div className="purchasing-page">
+        {breadcrumb}
+        <LiveState loading={loading} error={error} onRetry={load} loadingText="Loading purchase order…" />
+      </div>
+    );
+  }
 
-  const handleQtyChange = (index: number, newQty: number) => {
-    setReceiveItems((prev) => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], receivedQty: newQty };
+  if (order.status !== "APPROVED" && order.status !== "PARTIALLY_RECEIVED") {
+    return (
+      <div className="purchasing-page">
+        {breadcrumb}
+        <div className="po-not-found-card">
+          <h2>Not ready to receive</h2>
+          <p>Goods can only be received on an approved order. This one is {order.status.toLowerCase().replaceAll("_", " ")}.</p>
+          <Link href={`/purchasing/${order.id}`} className="po-back-btn">
+            Back to {order.poNumber}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
-      // Check discrepancies and auto update notes suggestion if needed
-      const discrepancies = updated.filter((i) => i.receivedQty !== i.orderedQty);
-      if (discrepancies.length > 0) {
-        const desc = discrepancies
-          .map((d) => {
-            const diff = d.orderedQty - d.receivedQty;
-            return diff > 0
-              ? `${d.product} short by ${diff} units`
-              : `${d.product} extra by ${Math.abs(diff)} units`;
-          })
-          .join(", ");
-        setDiscrepancyNotes(`${desc} — supplier notified, remainder expected next shipment.`);
-      }
+  const suggestion = (next: Record<string, number>) => {
+    const short = order.items.filter((i) => (next[i.id] ?? 0) < i.remainingQuantity);
+    if (short.length === 0) return "";
+    return `${short.map((i) => `${i.label} short by ${Math.round((i.remainingQuantity - (next[i.id] ?? 0)) * 1000) / 1000} units`).join(", ")} — supplier notified, remainder expected next shipment.`;
+  };
 
-      return updated;
+  const handleQtyChange = (itemId: string, remaining: number, value: number) => {
+    const safe = Math.min(Math.max(Number.isFinite(value) ? value : 0, 0), remaining);
+    setQty((prev) => {
+      const next = { ...prev, [itemId]: safe };
+      if (!notesEdited) setNotes(suggestion(next));
+      return next;
     });
   };
 
-  const handleConfirmReceipt = () => {
-    // Update PO status to Received
-    updatePurchaseOrderStatus(order.id, "Received");
-    router.push(`/purchasing/${order.id}`);
+  const handleConfirmReceipt = async () => {
+    const items = order.items.filter((i) => (qty[i.id] ?? 0) > 0).map((i) => ({ itemId: i.id, quantity: qty[i.id] }));
+    if (items.length === 0) {
+      setSaveError("Enter a received quantity for at least one product.");
+      return;
+    }
+    setSaving(true);
+    setSaveError("");
+    try {
+      const issues = order.items
+        .filter((i) => i.remainingQuantity > 0 && (qty[i.id] ?? 0) < i.remainingQuantity)
+        .map((i) => ({
+          itemId: i.id,
+          reason: reasons[i.id] ?? ("NOT_ARRIVED" as const),
+          quantity: Math.round((i.remainingQuantity - (qty[i.id] ?? 0)) * 1000) / 1000,
+        }));
+      await receivePo(order.id, { items, note: notes, issues, rating: rating || undefined, closeAfter });
+      router.push(`/purchasing/${order.id}`);
+    } catch (e) {
+      setSaveError(errorText(e));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="purchasing-page po-receive-page">
-      {/* Header & Breadcrumb */}
       <div className="po-receive-header">
         <div className="po-receive-header-left">
-          <nav className="po-detail-breadcrumb" aria-label="Breadcrumb">
-            <Link href="/purchasing" className="po-detail-breadcrumb-link">
-              Purchase Orders
-            </Link>
-            <span className="po-detail-breadcrumb-sep">/</span>
-            <Link href={`/purchasing/${order.id}`} className="po-detail-breadcrumb-link">
-              {order.id}
-            </Link>
-            <span className="po-detail-breadcrumb-sep">/</span>
-            <span className="po-detail-breadcrumb-curr">Receive</span>
-          </nav>
-
-          <h1 className="po-detail-title">Receive Goods — {order.id}</h1>
+          {breadcrumb}
+          <h1 className="po-detail-title">Receive Goods — {order.poNumber}</h1>
         </div>
 
         <div className="po-receive-header-actions">
           <Link href={`/purchasing/${order.id}`} className="po-receive-cancel-btn">
             Cancel
           </Link>
-          <button
-            type="button"
-            className="po-receive-confirm-btn"
-            onClick={handleConfirmReceipt}
-          >
-            Confirm Receipt
+          <button type="button" className="po-receive-confirm-btn" onClick={handleConfirmReceipt} disabled={saving}>
+            {saving ? "Saving…" : "Confirm Receipt"}
           </button>
         </div>
       </div>
 
-      {/* Main Card */}
       <div className="po-card po-receive-card">
-        <h2 className="po-receive-supplier-title">
-          Delivered from {supplierName}
-        </h2>
+        <h2 className="po-receive-supplier-title">Delivered from {order.supplier.name} to {order.warehouse.name}</h2>
 
         <div className="po-receive-table-wrap">
           <table className="po-receive-table">
             <thead>
               <tr>
-                <th scope="col" style={{ width: "48%" }}>
-                  PRODUCT
-                </th>
-                <th scope="col" style={{ width: "24%" }}>
-                  ORDERED QTY
-                </th>
-                <th scope="col" style={{ width: "20%" }}>
-                  RECEIVED QTY
-                </th>
+                <th scope="col" style={{ width: "34%" }}>PRODUCT</th>
+                <th scope="col" style={{ width: "18%" }}>STILL TO RECEIVE</th>
+                <th scope="col" style={{ width: "18%" }}>RECEIVED QTY</th>
+                <th scope="col" style={{ width: "22%" }}>IF SHORT, WHY</th>
                 <th scope="col" style={{ width: "8%", textAlign: "right" }}>
                   <span className="sr-only">Status</span>
                 </th>
               </tr>
             </thead>
             <tbody>
-              {receiveItems.map((item, index) => {
-                const hasDiscrepancy = item.receivedQty !== item.orderedQty;
-
+              {order.items.map((item) => {
+                const value = qty[item.id] ?? 0;
+                const done = item.remainingQuantity <= 0;
+                const hasDiscrepancy = !done && value !== item.remainingQuantity;
                 return (
-                  <tr
-                    key={index}
-                    className={`po-receive-row ${hasDiscrepancy ? "has-discrepancy" : ""}`}
-                  >
-                    <td className="po-receive-product">{item.product}</td>
-                    <td className="po-receive-ordered-qty">{item.orderedQty}</td>
+                  <tr key={item.id} className={`po-receive-row ${hasDiscrepancy ? "has-discrepancy" : ""}`}>
+                    <td className="po-receive-product">{item.label}</td>
+                    <td className="po-receive-ordered-qty">{item.remainingQuantity}</td>
                     <td className="po-receive-qty-cell">
                       <input
                         type="number"
                         min="0"
+                        max={item.remainingQuantity}
+                        disabled={done}
                         className={`po-receive-qty-input ${hasDiscrepancy ? "discrepancy" : ""}`}
-                        value={item.receivedQty}
-                        onChange={(e) =>
-                          handleQtyChange(index, parseInt(e.target.value) || 0)
-                        }
+                        value={value}
+                        onChange={(e) => handleQtyChange(item.id, item.remainingQuantity, parseFloat(e.target.value))}
                       />
+                    </td>
+                    <td>
+                      {hasDiscrepancy ? (
+                        <select
+                          className="po-new-select"
+                          value={reasons[item.id] ?? "NOT_ARRIVED"}
+                          onChange={(e) => setReasons((r) => ({ ...r, [item.id]: e.target.value as "NOT_ARRIVED" | "DAMAGED" | "WRONG_ITEM" }))}
+                        >
+                          <option value="NOT_ARRIVED">Not arrived</option>
+                          <option value="DAMAGED">Damaged</option>
+                          <option value="WRONG_ITEM">Wrong item</option>
+                        </select>
+                      ) : (
+                        <span style={{ color: "var(--muted)" }}>—</span>
+                      )}
                     </td>
                     <td className="po-receive-check-cell">
                       {hasDiscrepancy ? (
-                        <span
-                          className="po-receive-checkbox warning"
-                          aria-label="Discrepancy"
-                        />
+                        <span className="po-receive-checkbox warning" aria-label="Discrepancy" />
                       ) : (
-                        <span
-                          className="po-receive-checkbox checked"
-                          aria-label="Matched"
-                        >
+                        <span className="po-receive-checkbox checked" aria-label="Matched">
                           <CheckOutlined />
                         </span>
                       )}
@@ -216,7 +231,6 @@ export default function ReceiveGoodsPage({ poId }: ReceiveGoodsPageProps) {
           </table>
         </div>
 
-        {/* Discrepancy Notes */}
         <div className="po-discrepancy-section">
           <label htmlFor="po-discrepancy-notes" className="po-discrepancy-label">
             Discrepancy notes
@@ -225,11 +239,39 @@ export default function ReceiveGoodsPage({ poId }: ReceiveGoodsPageProps) {
             id="po-discrepancy-notes"
             className="po-discrepancy-textarea"
             rows={2}
-            value={discrepancyNotes}
-            onChange={(e) => setDiscrepancyNotes(e.target.value)}
+            value={notes}
+            onChange={(e) => {
+              setNotes(e.target.value);
+              setNotesEdited(true);
+            }}
             placeholder="Note any damaged, short, or substituted items..."
           />
         </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center", marginTop: 14 }}>
+          <div>
+            <span style={{ fontSize: 12.5, color: "var(--muted)", marginRight: 8 }}>How was the delivery?</span>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                aria-label={`${n} star${n > 1 ? "s" : ""}`}
+                onClick={() => setRating(rating === n ? 0 : n)}
+                style={{ background: "none", border: 0, cursor: "pointer", fontSize: 22, color: n <= rating ? "#F59E0B" : "#D1D5DB", padding: 0 }}
+              >
+                ★
+              </button>
+            ))}
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+            <input type="checkbox" checked={closeAfter} onChange={(e) => setCloseAfter(e.target.checked)} />
+            Close this order after receiving — the rest is not coming
+          </label>
+        </div>
+        {saveError && (
+          <p className="po-reject-helper" role="alert" style={{ color: "#dc2626" }}>
+            {saveError}
+          </p>
+        )}
       </div>
     </div>
   );

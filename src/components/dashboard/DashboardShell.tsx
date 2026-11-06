@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import StockFlowLogo from "@/components/common/StockFlowLogo";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
@@ -9,6 +10,8 @@ import {
   BarChartOutlined,
   BoxPlotOutlined,
   CalendarOutlined,
+  BellOutlined,
+  CarOutlined,
   CaretDownOutlined,
   DatabaseOutlined,
   FileTextOutlined,
@@ -17,9 +20,14 @@ import {
   SettingOutlined,
   ShopOutlined,
   TeamOutlined,
+  LockOutlined,
   LogoutOutlined,
 } from "@ant-design/icons";
-import { DatePicker } from "antd";
+import { Button, DatePicker, Modal, notification } from "antd";
+import { useAuth } from "@/hooks/use-auth";
+import { checkAccess } from "@/lib/auth/route-access";
+import AccessDenied from "@/components/common/AccessDenied";
+import { usePendingOrders } from "@/features/customer-orders/use-pending-orders";
 import QuickThemeToggle from "@/components/dashboard/QuickThemeToggle";
 import { useTheme } from "@/providers/ThemeProvider";
 
@@ -28,6 +36,7 @@ const primary = [
   { label: "Products", href: "/products", icon: <BoxPlotOutlined /> },
   { label: "Stock", href: "/stock", icon: <HomeOutlined /> },
   { label: "Purchasing", href: "/purchasing", icon: <ShopOutlined /> },
+  { label: "Customer Orders", href: "/customer-orders", icon: <CarOutlined /> },
   { label: "Manage", href: "/manage/categories", icon: <DatabaseOutlined /> },
   {
     label: "Requests",
@@ -39,6 +48,7 @@ const primary = [
   { label: "Users", href: "/users", icon: <TeamOutlined /> },
 ];
 const secondary = [
+  { label: "Notifications", href: "/notifications", icon: <BellOutlined /> },
   { label: "Settings", href: "/settings", icon: <SettingOutlined /> },
 ];
 
@@ -48,6 +58,63 @@ export default function DashboardShell({
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const roleName = user?.role || user?.roles?.[0];
+  const access = checkAccess(user, pathname);
+  // Clicking a menu the role can't use shows a popup instead of opening the screen.
+  const lockedOf = (href: string) => {
+    const r = checkAccess(user, href);
+    return r.allowed ? undefined : () => {
+      Modal.warning({
+        title: "Access restricted",
+        centered: true,
+        okText: "Got it",
+        content: (
+          <div>
+            <p style={{ margin: "0 0 6px" }}>
+              {roleName ? `Your role (${roleName}) doesn't` : "Your role doesn't"} have permission to open <strong>{r.feature}</strong>.
+            </p>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 12.5 }}>
+              Ask an administrator to grant <strong>{r.needs.join(" or ")}</strong> if you need it.
+            </p>
+          </div>
+        ),
+      });
+    };
+  };
+  // Customer orders waiting for review: badge in the sidebar, and a banner
+  // when a new one arrives while someone is on the site.
+  const { count: pendingOrders } = usePendingOrders((fresh) => {
+    const first = fresh[0];
+    notification.info({
+      key: "new-customer-order",
+      message: fresh.length > 1 ? `${fresh.length} new customer orders` : "New customer order",
+      description:
+        fresh.length > 1
+          ? "Several customers placed orders. Open the list to review them."
+          : `${first.customer.title} placed ${first.orderNo}.`,
+      placement: "topRight",
+      duration: 8,
+      btn: (
+        <Button
+          type="primary"
+          size="small"
+          onClick={() => {
+            notification.destroy("new-customer-order");
+            router.push(fresh.length > 1 ? "/customer-orders" : `/customer-orders/${first.id}`);
+          }}
+        >
+          Review
+        </Button>
+      ),
+    });
+  });
+  const navPrimary = primary.map((item) =>
+    item.href === "/customer-orders" ? { ...item, badge: pendingOrders || undefined } : item,
+  );
+  const navSecondary = secondary.map((item) =>
+    item.href === "/notifications" ? { ...item, badge: pendingOrders || undefined } : item,
+  );
   const showDashboardTools =
     pathname === "/dashboard" || pathname === "/dashboard/dashboard";
   const showTopbar = showDashboardTools;
@@ -86,17 +153,11 @@ export default function DashboardShell({
       >
         <aside className={`sidebar ${open ? "open" : ""}`}>
           <div className="brand">
-            <span className="brand-mark">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                <line x1="12" y1="22.08" x2="12" y2="12"/>
-              </svg>
-            </span>
+            <StockFlowLogo size={30} />
             <span>StockFlow</span>
           </div>
           <nav className="nav-group">
-            {primary.map((item) =>
+            {navPrimary.map((item) =>
               item.label === "Manage" ? (
                 <div key={item.label}>
                   <button
@@ -120,8 +181,16 @@ export default function DashboardShell({
                         active={pathname === "/manage/categories"}
                       />
                       <NavItem
+                        label="Brands"
+                        href="/manage/brands"
+                        onLocked={lockedOf("/manage/brands")}
+                        icon={<span className="manage-bullet">•</span>}
+                        active={pathname === "/manage/brands"}
+                      />
+                      <NavItem
                         label="Suppliers"
                         href="/manage/suppliers"
+                        onLocked={lockedOf("/manage/suppliers")}
                         icon={<span className="manage-bullet">•</span>}
                         active={
                           pathname === "/manage/suppliers" ||
@@ -131,6 +200,7 @@ export default function DashboardShell({
                       <NavItem
                         label="Warehouses"
                         href="/manage/warehouses"
+                        onLocked={lockedOf("/manage/warehouses")}
                         icon={<span className="manage-bullet">•</span>}
                         active={pathname === "/manage/warehouses"}
                       />
@@ -141,6 +211,7 @@ export default function DashboardShell({
                 <NavItem
                   key={item.label}
                   {...item}
+                  onLocked={lockedOf(item.href)}
                   active={
                     pathname === item.href ||
                     (item.href !== "/" && pathname.startsWith(item.href))
@@ -151,7 +222,7 @@ export default function DashboardShell({
           </nav>
           <div className="nav-divider" />
           <nav className="nav-group">
-            {secondary.map((item) => (
+            {navSecondary.map((item) => (
               <NavItem
                 key={item.label}
                 {...item}
@@ -176,7 +247,7 @@ export default function DashboardShell({
             <div className="support-card">
               <strong>Need help?</strong>
               <p>Our support team replies within an hour.</p>
-              <button>Contact support</button>
+              <button type="button" onClick={() => router.push("/help")}>Contact support</button>
             </div>
           </div>
         </aside>
@@ -214,7 +285,7 @@ export default function DashboardShell({
               )}
             </header>
           )}
-          {children}
+          {access.allowed ? children : <AccessDenied feature={access.feature} needs={access.needs} role={roleName} />}
         </main>
       </div>
       {confirmSignOut && (
@@ -274,13 +345,34 @@ function NavItem({
   icon,
   active,
   badge,
+  onLocked,
 }: {
   label: string;
   href: string;
   icon: React.ReactNode;
   active: boolean;
   badge?: number;
+  onLocked?: () => void;
 }) {
+  if (onLocked) {
+    return (
+      <Link
+        className={`nav-item ${active ? "active" : ""}`}
+        href={href}
+        aria-disabled="true"
+        title="You don't have access to this feature"
+        style={{ opacity: 0.6 }}
+        onClick={(e) => {
+          e.preventDefault();
+          onLocked();
+        }}
+      >
+        {icon}
+        <span>{label}</span>
+        <LockOutlined style={{ marginLeft: "auto", fontSize: 12 }} />
+      </Link>
+    );
+  }
   return (
     <Link className={`nav-item ${active ? "active" : ""}`} href={href}>
       {icon}

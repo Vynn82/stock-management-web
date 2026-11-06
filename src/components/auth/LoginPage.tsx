@@ -1,104 +1,143 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AuthError, signIn } from "@/features/auth/auth-flow.api";
+import { getMe } from "@/features/auth/auth.api";
+import { mapCurrentUserToUser, setTempPassword, clearTempPassword } from "@/lib/auth/session";
+import { useAuth } from "@/hooks/use-auth";
+import { Alert, AuthSplit, Field, PasswordField, SubmitButton, UserIcon } from "./auth-ui";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const [liveSync, setLiveSync] = useState(true);
+  const params = useSearchParams();
+  const auth = useAuth();
+  const [staffId, setStaffId] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<AuthError | null>(null);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const justReset = params.get("reset") === "1";
+  const expired = params.get("expired") === "1";
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.push("/auth/new-password");
+    if (loading) return;
+    if (!staffId.trim() || !password) {
+      setError(new AuthError("Enter your Staff ID and password.", "validation"));
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await signIn(staffId, password);
+      const me = res.user ?? (await getMe(res.accessToken));
+
+      auth.login({
+        accessToken: res.accessToken,
+        refreshToken: res.refreshToken,
+        mustChangePassword: res.mustChangePassword,
+        user: mapCurrentUserToUser(me),
+      });
+
+      if (res.mustChangePassword) {
+        // The temporary password is the "current password" for the next step.
+        setTempPassword(password);
+        router.replace("/auth/new-password");
+      } else {
+        clearTempPassword();
+        router.replace("/dashboard");
+      }
+    } catch (err) {
+      setError(
+        err instanceof AuthError
+          ? err
+          : new AuthError("Something went wrong. Please try again.", "server"),
+      );
+      setPassword("");
+      setLoading(false);
+    }
   }
 
   return (
-    <main className="login-screen">
-      <section className="login-card" aria-label="Sign in to StockFlow">
-        <aside className="login-promo">
-          <a className="login-brand" href="/dashboard" aria-label="StockFlow home">
-            <span className="login-brand-mark" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="m12 3.8 7 4v8.4l-7 4-7-4V7.8l7-4Z" />
-                <path d="m5.3 7.8 6.7 4 6.7-4M12 11.8v8" />
-              </svg>
-            </span>
-            <span>StockFlow</span>
-          </a>
+    <>
+      <header className="af-head is-left">
+        <h2>Welcome back</h2>
+        <p>Sign in with your Staff ID to manage inventory.</p>
+      </header>
 
-          <h1>See every product,<br />every warehouse,<br />in real time.</h1>
+      {justReset && !error && <Alert tone="success">Password updated. Sign in with your new password.</Alert>}
+      {expired && !error && !justReset && <Alert tone="info">Your session ended. Please sign in again.</Alert>}
+      {error && (
+        <Alert tone="error">
+          {error.kind === "inactive" ? (
+            <>
+              <strong>Account is not active.</strong> Ask your administrator to re-enable it.
+            </>
+          ) : error.kind === "offline" ? (
+            <>
+              <strong>Can&apos;t reach the server.</strong> Check your connection and try again.
+            </>
+          ) : (
+            error.message
+          )}
+        </Alert>
+      )}
 
-          <svg className="warehouse-illustration" viewBox="0 0 100 82" fill="none" aria-hidden="true">
-            <path d="m14 25 36-17 36 17v45H14V25Z" />
-            <path d="M14 25h72M50 8v62M14 25l36-4 36 4" />
-          </svg>
+      <form className="af-form" onSubmit={handleSubmit} noValidate>
+        <Field
+          autoFocus
+          label="Staff ID"
+          icon={<UserIcon />}
+          name="staffId"
+          autoComplete="username"
+          autoCapitalize="characters"
+          spellCheck={false}
+          placeholder="e.g. KH0001"
+          value={staffId}
+          onChange={(e) => {
+            setStaffId(e.target.value);
+            setError(null);
+          }}
+          disabled={loading}
+          aria-invalid={error?.kind === "invalid" || undefined}
+        />
+        <PasswordField
+          label="Password"
+          name="password"
+          autoComplete="current-password"
+          placeholder="Enter your password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setError(null);
+          }}
+          disabled={loading}
+          aria-invalid={error?.kind === "invalid" || undefined}
+          right={
+            <Link className="af-link" href="/auth/forgot-password">
+              Forgot password?
+            </Link>
+          }
+        />
+        <SubmitButton loading={loading}>{loading ? "Signing in…" : "Sign in"}</SubmitButton>
+      </form>
 
-          <button
-            className="live-sync-card"
-            type="button"
-            role="switch"
-            aria-checked={liveSync}
-            onClick={() => setLiveSync((enabled) => !enabled)}
-          >
-            <span className="live-sync-copy">
-              <strong>Live sync</strong>
-              <span>Every stock movement updates instantly.</span>
-            </span>
-            <span className={`live-sync-switch${liveSync ? " is-on" : ""}`} aria-hidden="true">
-              <span />
-            </span>
-          </button>
-        </aside>
+      <p className="af-note">
+        Accounts are created by your administrator. Can&apos;t sign in? Contact them to get access or a new temporary password.
+      </p>
+    </>
+  );
+}
 
-        <div className="login-form-panel">
-          <header className="login-heading">
-            <h2>Welcome back</h2>
-            <p>Sign in to manage your inventory.</p>
-          </header>
-
-          <form className="login-form" onSubmit={handleSubmit}>
-            <label htmlFor="login-email">Email</label>
-            <input
-              autoComplete="email"
-              id="login-email"
-              name="email"
-              placeholder="you@company.com"
-              required
-              type="email"
-            />
-
-            <div className="login-password-label">
-              <label htmlFor="login-password">Password</label>
-              <Link href="/auth/forgot-password">Forgot password?</Link>
-            </div>
-            <input
-              autoComplete="current-password"
-              id="login-password"
-              name="password"
-              placeholder="Enter your password"
-              required
-              type="password"
-            />
-
-            <label className="remember-me">
-              <input name="remember" type="checkbox" />
-              <span>Remember me</span>
-            </label>
-
-            <button className="login-submit" type="submit">Log in</button>
-          </form>
-
-          <p className="login-signup">Don&apos;t have an account? <a href="#sign-up">Sign up</a></p>
-
-          <div className="login-trust">
-            <div className="team-avatars" aria-hidden="true">
-              <span>L</span><span>S</span><span>V</span>
-            </div>
-            <p>Trusted by growing teams — join warehouses already using StockFlow</p>
-          </div>
-        </div>
-      </section>
-    </main>
+export default function LoginPage() {
+  return (
+    <AuthSplit>
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
+    </AuthSplit>
   );
 }

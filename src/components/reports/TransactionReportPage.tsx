@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { downloadCSV } from "./reports-data";
+import { LiveState } from "@/components/common/live-state";
+import { shortDate, useReportData } from "@/features/reports/reports-live";
 
 export type TransactionType = "All" | "In" | "Out" | "Transfer" | "Adjustment";
 
@@ -26,94 +28,18 @@ interface TransactionItem {
   performedBy: string;
 }
 
-const chartData: ChartDay[] = [
-  { day: "Aug 22", inHeight: 52, outHeight: 38, inQty: 140, outQty: 85 },
-  { day: "Aug 23", inHeight: 74, outHeight: 38, inQty: 210, outQty: 80 },
-  { day: "Aug 24", inHeight: 45, outHeight: 62, inQty: 110, outQty: 165 },
-  { day: "Aug 25", inHeight: 88, outHeight: 32, inQty: 280, outQty: 75 },
-  { day: "Aug 26", inHeight: 68, outHeight: 54, inQty: 195, outQty: 130 },
-  { day: "Aug 27", inHeight: 38, outHeight: 72, inQty: 95, outQty: 190 },
-  { day: "Aug 28", inHeight: 80, outHeight: 30, inQty: 250, outQty: 68 },
-  { day: "Aug 29", inHeight: 94, outHeight: 48, inQty: 320, outQty: 125, isHighlight: true },
+const PRESETS = [
+  { label: "Last 7 Days", days: 7 },
+  { label: "Last 14 Days", days: 14 },
 ];
 
-const transactionRows: TransactionItem[] = [
-  {
-    id: "tx-1",
-    date: "Aug 29, 2026",
-    product: "Wireless Mouse M185",
-    type: "In",
-    qty: "+120",
-    qtyNumber: 120,
-    warehouse: "Phnom Penh Main",
-    performedBy: "Visal Khem",
-  },
-  {
-    id: "tx-2",
-    date: "Aug 28, 2026",
-    product: "USB-C Cable 2m",
-    type: "Out",
-    qty: "-18",
-    qtyNumber: -18,
-    warehouse: "Siem Reap",
-    performedBy: "Sokha Chan",
-  },
-  {
-    id: "tx-3",
-    date: "Aug 28, 2026",
-    product: "A4 Paper Ream",
-    type: "Transfer",
-    qty: "40 units",
-    qtyNumber: 40,
-    warehouse: "Battambang — Phnom Penh Main",
-    performedBy: "Dara Pich",
-  },
-  {
-    id: "tx-4",
-    date: "Aug 27, 2026",
-    product: "Desk Lamp LED",
-    type: "Adjustment",
-    qty: "-3",
-    qtyNumber: -3,
-    warehouse: "Kampong Cham",
-    performedBy: "Lina Sok",
-  },
-  {
-    id: "tx-5",
-    date: "Aug 26, 2026",
-    product: "Wireless Mouse M185",
-    type: "Out",
-    qty: "-25",
-    qtyNumber: -25,
-    warehouse: "Phnom Penh Main",
-    performedBy: "Ravy Meas",
-  },
-  {
-    id: "tx-6",
-    date: "Aug 25, 2026",
-    product: "USB-C Cable 2m",
-    type: "In",
-    qty: "+200",
-    qtyNumber: 200,
-    warehouse: "Siem Reap",
-    performedBy: "Visal Khem",
-  },
-  {
-    id: "tx-7",
-    date: "Aug 24, 2026",
-    product: "A4 Paper Ream",
-    type: "Out",
-    qty: "-60",
-    qtyNumber: -60,
-    warehouse: "Phnom Penh Main",
-    performedBy: "Sokha Chan",
-  },
-];
+const TYPE_SHORT = { "Stock In": "In", "Stock Out": "Out", Transfer: "Transfer", Adjustment: "Adjustment" } as const;
 
 export default function TransactionReportPage() {
+  const data = useReportData();
   const [selectedType, setSelectedType] = useState<TransactionType>("All");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState("22.08.2026 – 29.08.2026");
+  const [dateRange, setDateRange] = useState(PRESETS[0].label);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
 
@@ -123,6 +49,50 @@ export default function TransactionReportPage() {
       setToastMessage(null);
     }, 3500);
   }
+
+  const days = PRESETS.find((p) => p.label === dateRange)?.days ?? 7;
+
+  const transactionRows: TransactionItem[] = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (days - 1));
+    return data.history
+      .filter((h) => new Date(h.at).getTime() >= start.getTime())
+      .map((h) => ({
+        id: h.id,
+        date: shortDate(h.at),
+        product: h.productName,
+        type: TYPE_SHORT[h.type],
+        qty: h.type === "Transfer" ? `${Math.abs(h.quantity)} units` : `${h.quantity > 0 ? "+" : ""}${h.quantity}`,
+        qtyNumber: h.quantity,
+        warehouse: h.destinationWarehouse ? `${h.warehouse} → ${h.destinationWarehouse}` : h.warehouse,
+        performedBy: h.user,
+      }));
+  }, [data.history, days]);
+
+  const chartData: ChartDay[] = useMemo(() => {
+    const list = Array.from({ length: days }, (_, i) => {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - (days - 1 - i));
+      return { key: d.toDateString(), day: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }), inQty: 0, outQty: 0 };
+    });
+    for (const h of data.history) {
+      const row = list.find((x) => x.key === new Date(h.at).toDateString());
+      if (!row) continue;
+      if (h.type === "Stock In") row.inQty += Math.abs(h.quantity);
+      else if (h.type === "Stock Out") row.outQty += Math.abs(h.quantity);
+    }
+    const max = Math.max(1, ...list.flatMap((x) => [x.inQty, x.outQty]));
+    return list.map((x, i) => ({
+      day: x.day,
+      inQty: x.inQty,
+      outQty: x.outQty,
+      inHeight: x.inQty > 0 ? Math.max(4, (x.inQty / max) * 100) : 0,
+      outHeight: x.outQty > 0 ? Math.max(4, (x.outQty / max) * 100) : 0,
+      isHighlight: i === list.length - 1,
+    }));
+  }, [data.history, days]);
 
   const filteredRows = transactionRows.filter((r) => {
     if (selectedType === "All") return true;
@@ -135,7 +105,7 @@ export default function TransactionReportPage() {
       "STOCKFLOW - TRANSACTION REPORT",
       `Period: ${dateRange}`,
       `Filter: ${selectedType}`,
-      "Generated: Aug 29, 2026",
+      `Generated: ${shortDate(new Date())}`,
       "==================================================",
       "",
       "DATE,PRODUCT,TYPE,QTY,WAREHOUSE,PERFORMED BY",
@@ -153,13 +123,7 @@ export default function TransactionReportPage() {
     showToast("Transaction report exported successfully.");
   }
 
-  const presets = [
-    "22.08.2026 – 29.08.2026",
-    "Last 7 Days (22.08 – 29.08.2026)",
-    "Last 14 Days (15.08 – 29.08.2026)",
-    "This Month (01.08 – 29.08.2026)",
-    "Last Month (01.07 – 31.07.2026)",
-  ];
+  const presets = PRESETS.map((p) => p.label);
 
   return (
     <div className="tx-rep-page">
@@ -279,6 +243,7 @@ export default function TransactionReportPage() {
         ))}
       </div>
 
+      <LiveState loading={data.loading && !data.loaded} error={data.error} onRetry={data.reload}>
       {/* Card 1: Stock Movement — In vs Out Chart */}
       <div className="tx-rep-chart-card">
         <div className="tx-rep-chart-header">
@@ -411,6 +376,7 @@ export default function TransactionReportPage() {
           </table>
         </div>
       </div>
+      </LiveState>
     </div>
   );
 }

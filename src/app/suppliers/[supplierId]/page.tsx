@@ -1,32 +1,52 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import SupplierDetailsPage from "@/components/suppliers/SupplierDetailsPage";
-import { getSupplier, readCustomSuppliers, type Supplier } from "@/components/suppliers/supplier-data";
+import { errorText } from "@/components/common/live-state";
+import { fetchSupplierOrders, suppliersApi, type SupplierOrder, type SupplierRow } from "@/features/live/master-data";
 
 export default function SupplierDetailsRoute() {
   const { supplierId } = useParams<{ supplierId: string }>();
-  const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [supplier, setSupplier] = useState<SupplierRow | null>(null);
+  const [orders, setOrders] = useState<SupplierOrder[]>([]);
   const [error, setError] = useState("");
+  const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
-      setSupplier(getSupplier(supplierId) ?? readCustomSuppliers().find((item) => item.id === Number(supplierId)) ?? null);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load supplier details.");
+      const found = await suppliersApi.get(supplierId);
+      setSupplier(found);
+      // Order history is optional: a missing permission shouldn't hide the supplier.
+      setOrders(await fetchSupplierOrders(found.code).catch(() => []));
+    } catch (e) {
+      if ((e as { status?: number }).status === 404) setNotFound(true);
+      else setError(errorText(e, "Could not load supplier details."));
     } finally {
       setLoading(false);
     }
   }, [supplierId]);
 
-  if (error) return <div className="supplier-detail-message" role="alert">{error}</div>;
+  useEffect(() => {
+    void load();
+  }, [load]);
+
   if (loading) return <div className="supplier-detail-message" aria-live="polite">Loading supplier details...</div>;
-  if (!supplier) return <div className="supplier-detail-message">
-    <p>Supplier not found.</p>
-    <Link href="/manage/suppliers">Back to suppliers</Link>
-  </div>;
-  return <SupplierDetailsPage supplier={supplier} />;
+  if (error) return (
+    <div className="supplier-detail-message" role="alert">
+      <p>{error}</p>
+      <button type="button" className="stock-action-btn" onClick={load}>Try again</button>
+    </div>
+  );
+  if (notFound || !supplier) return (
+    <div className="supplier-detail-message">
+      <p>Supplier not found.</p>
+      <Link href="/manage/suppliers">Back to suppliers</Link>
+    </div>
+  );
+  return <SupplierDetailsPage supplier={supplier} orders={orders} />;
 }

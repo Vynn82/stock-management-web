@@ -4,15 +4,16 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { message } from "antd";
+import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
 
 interface TransferStockPageProps {
   productId?: string;
 }
 
-export default function TransferStockPage({ productId = "1" }: TransferStockPageProps) {
+function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
   const router = useRouter();
-  const { items, getItem, recordTransfer } = useStockStore();
+  const { items, getItem, recordTransfer, warehouseNames } = useStockStore();
   const [messageApi, contextHolder] = message.useMessage();
 
   // Selected product
@@ -23,14 +24,14 @@ export default function TransferStockPage({ productId = "1" }: TransferStockPage
 
   // Form states matching screenshot
   const [sourceWarehouse, setSourceWarehouse] = useState<string>(
-    product.warehouses[0]?.warehouse || "Phnom Penh Main Warehouse"
+    product.warehouses[0]?.warehouse || warehouseNames[0] || ""
   );
   const [targetWarehouse, setTargetWarehouse] = useState<string>(
-    product.warehouses[1]?.warehouse || "Siem Reap Branch Warehouse"
+    product.warehouses[1]?.warehouse || warehouseNames.find((n) => n !== product.warehouses[0]?.warehouse) || ""
   );
   const [transferQty, setTransferQty] = useState<number>(18);
   const [notes, setNotes] = useState<string>(
-    "Replenishing Siem Reap ahead of the weekend promo — confirmed with branch manager."
+    ""
   );
   const [submitting, setSubmitting] = useState(false);
 
@@ -39,32 +40,19 @@ export default function TransferStockPage({ productId = "1" }: TransferStockPage
     if (product.warehouses && product.warehouses.length > 0) {
       return product.warehouses.map((w) => w.warehouse);
     }
-    return [
-      "Phnom Penh Main Warehouse",
-      "Siem Reap Branch Warehouse",
-      "Battambang Warehouse",
-      "Sihanoukville Warehouse",
-    ];
-  }, [product]);
+    return warehouseNames;
+  }, [product, warehouseNames]);
 
   // Destination options (exclude source warehouse)
   const destinationOptions = useMemo(() => {
-    const all = [
-      "Phnom Penh Main Warehouse",
-      "Siem Reap Branch Warehouse",
-      "Battambang Warehouse",
-      "Sihanoukville Warehouse",
-      "Kampong Cham Warehouse",
-      "Kandal Warehouse",
-    ];
-    return all.filter((w) => w !== sourceWarehouse);
-  }, [sourceWarehouse]);
+    return warehouseNames.filter((w) => w !== sourceWarehouse);
+  }, [sourceWarehouse, warehouseNames]);
 
   // Source warehouse stock calculations
   const sourceStock = useMemo(() => {
     const wh = product.warehouses.find((w) => w.warehouse === sourceWarehouse);
-    const onHand = wh?.onHand ?? 42;
-    const reserved = wh?.reserved ?? 6;
+    const onHand = wh?.onHand ?? 0;
+    const reserved = wh?.reserved ?? 0;
     const available = Math.max(0, onHand - reserved);
     return { onHand, reserved, available };
   }, [product, sourceWarehouse]);
@@ -75,7 +63,7 @@ export default function TransferStockPage({ productId = "1" }: TransferStockPage
   const isOverQuantity = transferQty > sourceStock.available;
 
   // Handle transfer submission
-  const handleConfirmTransfer = () => {
+  const handleConfirmTransfer = async () => {
     if (sourceWarehouse === targetWarehouse) {
       messageApi.error("Source and destination warehouses cannot be the same.");
       return;
@@ -95,7 +83,7 @@ export default function TransferStockPage({ productId = "1" }: TransferStockPage
 
     setSubmitting(true);
     try {
-      recordTransfer(
+      await recordTransfer(
         product.id,
         sourceWarehouse,
         targetWarehouse,
@@ -108,8 +96,8 @@ export default function TransferStockPage({ productId = "1" }: TransferStockPage
       setTimeout(() => {
         router.push(`/stock/${product.id}`);
       }, 700);
-    } catch {
-      messageApi.error("An error occurred while processing the transfer.");
+    } catch (err) {
+      messageApi.error(err instanceof Error ? err.message : "An error occurred while processing the transfer.");
       setSubmitting(false);
     }
   };
@@ -195,7 +183,9 @@ export default function TransferStockPage({ productId = "1" }: TransferStockPage
                     setSourceWarehouse(p.warehouses[0].warehouse);
                     const dest =
                       p.warehouses.find((w) => w.warehouse !== p.warehouses[0].warehouse)
-                        ?.warehouse || "Siem Reap Branch Warehouse";
+                        ?.warehouse ||
+                      warehouseNames.find((n) => n !== p.warehouses[0].warehouse) ||
+                      "";
                     setTargetWarehouse(dest);
                   }
                 }}
@@ -259,8 +249,7 @@ export default function TransferStockPage({ productId = "1" }: TransferStockPage
                       setSourceWarehouse(nextSrc);
                       if (nextSrc === targetWarehouse) {
                         const fallback =
-                          destinationOptions.find((w) => w !== nextSrc) ||
-                          "Siem Reap Branch Warehouse";
+                          destinationOptions.find((w) => w !== nextSrc) || "";
                         setTargetWarehouse(fallback);
                       }
                     }}
@@ -395,5 +384,13 @@ export default function TransferStockPage({ productId = "1" }: TransferStockPage
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TransferStockPage(props: React.ComponentProps<typeof TransferStockPageInner>) {
+  return (
+    <StockGate productId={props.productId}>
+      <TransferStockPageInner {...props} />
+    </StockGate>
   );
 }

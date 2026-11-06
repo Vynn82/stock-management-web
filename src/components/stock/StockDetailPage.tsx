@@ -8,13 +8,15 @@ import {
   SwapOutlined,
   ArrowRightOutlined,
 } from "@ant-design/icons";
+import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
+import Can from "@/components/common/Can";
 
 interface StockDetailPageProps {
   productId?: string;
 }
 
-export default function StockDetailPage({ productId = "1" }: StockDetailPageProps) {
+function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
   const {
     items,
     getItem,
@@ -22,6 +24,7 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
     recordStockOut,
     recordTransfer,
     recordAdjustment,
+    warehouseNames,
   } = useStockStore();
 
   const [messageApi, contextHolder] = message.useMessage();
@@ -43,10 +46,10 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
   const [editReorderPoint, setEditReorderPoint] = useState(product.reorderPoint);
 
   const [sourceWarehouse, setSourceWarehouse] = useState(
-    product.warehouses[0]?.warehouse || "Phnom Penh Main Warehouse"
+    product.warehouses[0]?.warehouse || warehouseNames[0] || ""
   );
   const [targetWarehouse, setTargetWarehouse] = useState(
-    product.warehouses[1]?.warehouse || "Siem Reap Branch Warehouse"
+    product.warehouses[1]?.warehouse || warehouseNames.find((n) => n !== product.warehouses[0]?.warehouse) || ""
   );
   const [actionQty, setActionQty] = useState<number>(5);
   const [adjustCount, setAdjustCount] = useState<number>(
@@ -63,35 +66,40 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
     setActiveModal("edit");
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editName.trim() || !editSku.trim()) {
       messageApi.error("Product name and SKU are required.");
       return;
     }
-    updateProductInfo(product.id, {
-      name: editName.trim(),
-      sku: editSku.trim(),
-      category: editCategory.trim(),
-      unitCost: Number(editUnitCost) || product.unitCost,
-      reorderPoint: Number(editReorderPoint) || product.reorderPoint,
-    });
-    messageApi.success("Product details updated successfully.");
-    setActiveModal("none");
+    try {
+      await updateProductInfo(product.id, {
+        name: editName.trim(),
+        sku: editSku.trim(),
+        category: editCategory.trim(),
+        unitCost: Number(editUnitCost) || product.unitCost,
+        reorderPoint: Number(editReorderPoint) || product.reorderPoint,
+      });
+      messageApi.success("Product details updated successfully.");
+      setActiveModal("none");
+    } catch (err) {
+      messageApi.error(err instanceof Error ? err.message : "Could not save the product.");
+    }
   };
 
   const handleOpenTransfer = () => {
-    const src = product.warehouses[0]?.warehouse || "Phnom Penh Main Warehouse";
+    const src = product.warehouses[0]?.warehouse || warehouseNames[0] || "";
     setSourceWarehouse(src);
     const dest =
       product.warehouses.find((w) => w.warehouse !== src)?.warehouse ||
-      "Siem Reap Branch Warehouse";
+      warehouseNames.find((n) => n !== src) ||
+      "";
     setTargetWarehouse(dest);
     setActionQty(5);
     setActionReason("Branch replenishment");
     setActiveModal("transfer");
   };
 
-  const handleExecuteTransfer = () => {
+  const handleExecuteTransfer = async () => {
     if (sourceWarehouse === targetWarehouse) {
       messageApi.error("Source and destination warehouses must be different.");
       return;
@@ -108,21 +116,25 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
       );
       return;
     }
-    recordTransfer(
-      product.id,
-      sourceWarehouse,
-      targetWarehouse,
-      actionQty,
-      actionReason || "Inter-warehouse transfer"
-    );
-    messageApi.success(
-      `Transferred ${actionQty} units from ${sourceWarehouse} to ${targetWarehouse}.`
-    );
-    setActiveModal("none");
+    try {
+      await recordTransfer(
+        product.id,
+        sourceWarehouse,
+        targetWarehouse,
+        actionQty,
+        actionReason || "Inter-warehouse transfer"
+      );
+      messageApi.success(
+        `Transferred ${actionQty} units from ${sourceWarehouse} to ${targetWarehouse}.`
+      );
+      setActiveModal("none");
+    } catch (err) {
+      messageApi.error(err instanceof Error ? err.message : "Could not transfer the stock.");
+    }
   };
 
   const handleOpenAdjust = () => {
-    const wh = product.warehouses[0]?.warehouse || "Phnom Penh Main Warehouse";
+    const wh = product.warehouses[0]?.warehouse || warehouseNames[0] || "";
     setSourceWarehouse(wh);
     const cur = product.warehouses.find((w) => w.warehouse === wh)?.onHand || 0;
     setAdjustCount(cur);
@@ -130,28 +142,32 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
     setActiveModal("adjust");
   };
 
-  const handleExecuteAdjust = () => {
-    recordAdjustment(
-      product.id,
-      sourceWarehouse,
-      adjustCount,
-      actionReason || "Physical inventory count"
-    );
-    messageApi.success(
-      `Stock level for ${product.name} at ${sourceWarehouse} updated to ${adjustCount} units.`
-    );
-    setActiveModal("none");
+  const handleExecuteAdjust = async () => {
+    try {
+      await recordAdjustment(
+        product.id,
+        sourceWarehouse,
+        adjustCount,
+        actionReason || "Physical inventory count"
+      );
+      messageApi.success(
+        `Stock level for ${product.name} at ${sourceWarehouse} updated to ${adjustCount} units.`
+      );
+      setActiveModal("none");
+    } catch (err) {
+      messageApi.error(err instanceof Error ? err.message : "Could not adjust the stock.");
+    }
   };
 
   const handleOpenStockOut = () => {
-    const wh = product.warehouses[0]?.warehouse || "Phnom Penh Main Warehouse";
+    const wh = product.warehouses[0]?.warehouse || warehouseNames[0] || "";
     setSourceWarehouse(wh);
     setActionQty(1);
     setActionReason("Order fulfillment");
     setActiveModal("stockOut");
   };
 
-  const handleExecuteStockOut = () => {
+  const handleExecuteStockOut = async () => {
     if (actionQty <= 0) {
       messageApi.error("Quantity must be greater than zero.");
       return;
@@ -164,16 +180,20 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
       );
       return;
     }
-    recordStockOut(
-      product.id,
-      sourceWarehouse,
-      actionQty,
-      actionReason || "Manual stock dispatch"
-    );
-    messageApi.success(
-      `Dispatched ${actionQty} units from ${sourceWarehouse}.`
-    );
-    setActiveModal("none");
+    try {
+      await recordStockOut(
+        product.id,
+        sourceWarehouse,
+        actionQty,
+        actionReason || "Manual stock dispatch"
+      );
+      messageApi.success(
+        `Dispatched ${actionQty} units from ${sourceWarehouse}.`
+      );
+      setActiveModal("none");
+    } catch (err) {
+      messageApi.error(err instanceof Error ? err.message : "Could not dispatch the stock.");
+    }
   };
 
   return (
@@ -212,14 +232,14 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
         </div>
 
         {/* Edit Button */}
-        <button
+        <Can any={"PRODUCT_EDIT"}><button
           type="button"
           className="stock-edit-btn"
           onClick={handleOpenEdit}
         >
           <EditOutlined style={{ fontSize: 13 }} />
           <span>Edit</span>
-        </button>
+        </button></Can>
       </div>
 
       {/* Main Two-Column Content Grid */}
@@ -383,7 +403,7 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
 
             <div className="stock-quick-actions-col">
               {/* Button 1: Transfer (Solid Purple) */}
-              <Link
+              <Can any={"STOCK_TRANSFER"}><Link
                 href={`/stock/${product.id}/transfer`}
                 className="stock-btn-transfer"
                 style={{ textDecoration: "none" }}
@@ -404,10 +424,10 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
                   <path d="M21 13v2a4 4 0 0 1-4 4H3" />
                 </svg>
                 <span>Transfer</span>
-              </Link>
+              </Link></Can>
 
               {/* Button 2: Adjust (White with dark border) */}
-              <Link
+              <Can any={"STOCK_ADJUST"}><Link
                 href={`/stock/${product.id}/adjust`}
                 className="stock-btn-adjust"
                 style={{ textDecoration: "none" }}
@@ -427,10 +447,10 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
                   <polyline points="8 17 12 21 16 17" />
                 </svg>
                 <span>Adjust</span>
-              </Link>
+              </Link></Can>
 
               {/* Button 3: Stock Out (Red border & text) */}
-              <Link
+              <Can any={"STOCK_ADJUST"}><Link
                 href={`/stock/${product.id}/stock-out`}
                 className="stock-btn-stockout"
                 style={{ textDecoration: "none" }}
@@ -450,7 +470,7 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
                   <line x1="12" y1="22.08" x2="12" y2="12" />
                 </svg>
                 <span>Stock Out</span>
-              </Link>
+              </Link></Can>
             </div>
           </section>
         </div>
@@ -606,14 +626,7 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
                 value={targetWarehouse}
                 onChange={(e) => setTargetWarehouse(e.target.value)}
               >
-                {[
-                  "Phnom Penh Main Warehouse",
-                  "Siem Reap Branch Warehouse",
-                  "Battambang Warehouse",
-                  "Sihanoukville Warehouse",
-                  "Kampong Cham Warehouse",
-                  "Kandal Warehouse",
-                ]
+                {warehouseNames
                   .filter((w) => w !== sourceWarehouse)
                   .map((w) => (
                     <option key={w} value={w}>
@@ -937,5 +950,13 @@ export default function StockDetailPage({ productId = "1" }: StockDetailPageProp
         </div>
       </Drawer>
     </div>
+  );
+}
+
+export default function StockDetailPage(props: React.ComponentProps<typeof StockDetailPageInner>) {
+  return (
+    <StockGate productId={props.productId}>
+      <StockDetailPageInner {...props} />
+    </StockGate>
   );
 }

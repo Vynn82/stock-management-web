@@ -4,6 +4,9 @@ export const API_ENDPOINTS = {
     CHANGE_PASSWORD: "auth/change-password",
     REFRESH: "auth/refresh",
     LOGOUT: "auth/logout",
+    FORGOT_PASSWORD: "auth/forgot-password",
+    VERIFY_RESET_OTP: "auth/verify-reset-otp",
+    RESET_PASSWORD: "auth/reset-password",
   },
   USERS: {
     LIST: "users",

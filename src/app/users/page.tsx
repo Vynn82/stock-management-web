@@ -1,27 +1,79 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, message } from "antd";
-import { CaretDownOutlined, CheckOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
-import { initialTeamMembers, readInvitedTeamMembers } from "@/components/users/team-members";
+import { Button, Input, Modal, Select, message } from "antd";
+import { CaretDownOutlined, CheckOutlined, PlusOutlined, SafetyCertificateOutlined, SearchOutlined } from "@ant-design/icons";
+import { LiveState, errorText } from "@/components/common/live-state";
+import { useAuth } from "@/hooks/use-auth";
+import { changeMemberRole, fetchRoles, fetchTeamMembers, roleLabel, type RoleRow, type TeamMemberRow } from "@/features/users/users-live";
+import { ApiError } from "@/features/live/http";
+import Can from "@/components/common/Can";
 
 export default function UsersPage() {
   const router = useRouter();
-  const [members, setMembers] = useState(initialTeamMembers);
+  const { user } = useAuth();
+  const [members, setMembers] = useState<TeamMemberRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const [roles, setRoles] = useState<RoleRow[]>([]);
+  const [editing, setEditing] = useState<TeamMemberRow | null>(null);
+  const [newRoleId, setNewRoleId] = useState("");
+  const [savingRole, setSavingRole] = useState(false);
+
+  async function openChangeRole(member: TeamMemberRow) {
+    setEditing(member);
+    try {
+      const list = roles.length ? roles : await fetchRoles();
+      setRoles(list);
+      setNewRoleId(list.find((r) => roleLabel(r.name) === member.role)?.id ?? "");
+    } catch (error) {
+      setEditing(null);
+      messageApi.error(error instanceof ApiError ? error.message : "Could not load roles.");
+    }
+  }
+
+  async function saveRole() {
+    if (!editing || !newRoleId) return;
+    setSavingRole(true);
+    try {
+      await changeMemberRole(editing.id, newRoleId);
+      messageApi.success(`${editing.name}'s role was updated.`);
+      setEditing(null);
+      await load();
+    } catch (error) {
+      messageApi.error(error instanceof ApiError ? error.message : "Could not change the role.");
+    } finally {
+      setSavingRole(false);
+    }
+  }
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+    try {
+      setMembers(await fetchTeamMembers());
+    } catch (error) {
+      setLoadError(errorText(error, "Could not load team members."));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    try {
-      setMembers([...initialTeamMembers, ...readInvitedTeamMembers()]);
-    } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "Could not load saved team members.");
-    }
-  }, [messageApi]);
+    void load();
+  }, [load]);
+
+  const roleOptions = useMemo(() => {
+    const base = ["Admin", "Manager", "Staff"];
+    const extra = Array.from(new Set(members.map((member) => member.role))).filter((role) => !base.includes(role));
+    return [...base, ...extra];
+  }, [members]);
 
   useEffect(() => {
     if (!roleDropdownOpen) return;
@@ -56,7 +108,10 @@ export default function UsersPage() {
     {contextHolder}
     <div className="team-members-heading">
       <h1>Team Members</h1>
-      <Button className="team-invite-button" type="primary" icon={<PlusOutlined />} onClick={() => router.push("/users/invite")}>Invite Member</Button>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <Can any="ROLE_VIEW"><Button icon={<SafetyCertificateOutlined />} onClick={() => router.push("/users/roles")}>Roles &amp; permissions</Button></Can>
+      <Can any={"USER_CREATE"}><Button className="team-invite-button" type="primary" icon={<PlusOutlined />} onClick={() => router.push("/users/invite")}>Invite Member</Button></Can>
+      </div>
     </div>
     <div className="team-members-toolbar">
       <Input
@@ -81,7 +136,7 @@ export default function UsersPage() {
         </button>
         {roleDropdownOpen && <div className="team-members-role-menu" role="menu" aria-label="Filter by role">
           <span className="team-members-role-menu-title">Filter by role</span>
-          {[{ value: "all", label: "All Roles" }, ...(["Admin", "Manager", "Staff"] as const).map((value) => ({ value, label: value }))].map((option) => {
+          {[{ value: "all", label: "All Roles" }, ...roleOptions.map((value) => ({ value, label: value }))].map((option) => {
             const isSelected = roleFilter === option.value;
             return <button
               className={`team-members-role-option ${isSelected ? "selected" : ""}`}
@@ -102,6 +157,7 @@ export default function UsersPage() {
       </div>
     </div>
     <div className="team-members-table-wrap">
+      <LiveState loading={loading} error={loadError} onRetry={load} loadingText="Loading team members…">
       <table className="team-members-table">
         <thead><tr>
           <th scope="col">Member</th>
@@ -110,23 +166,47 @@ export default function UsersPage() {
           <th scope="col">Role</th>
           <th scope="col">Status</th>
           <th scope="col">Joined</th>
+          <Can any="USER_ROLE_UPDATE"><th scope="col"><span className="sr-only">Actions</span></th></Can>
         </tr></thead>
         <tbody>
-          {filteredMembers.map((member) => <tr key={member.staffId}>
+          {filteredMembers.map((member) => <tr key={member.id}>
             <td><div className="team-member-name">
               <span className="team-member-avatar" aria-hidden="true">{member.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>
               <strong>{member.name}</strong>
-              {member.isCurrentUser && <span className="team-member-you">You</span>}
+              {user?.staffId && member.staffId === user.staffId && <span className="team-member-you">You</span>}
             </div></td>
             <td>{member.staffId}</td>
             <td>{member.email}</td>
-            <td><span className={`team-member-role team-member-role-${member.role.toLowerCase()}`}>{member.role}</span></td>
+            <td><span className={`team-member-role team-member-role-${member.roleClass}`}>{member.role}</span></td>
             <td><span className={`team-member-status ${member.status === "Active" ? "active" : "pending"}`}>{member.status}</span></td>
             <td>{member.joined}</td>
+            <Can any="USER_ROLE_UPDATE"><td style={{ textAlign: "right" }}>
+              {!(user?.staffId && member.staffId === user.staffId) && <Button size="small" onClick={() => openChangeRole(member)}>Change role</Button>}
+            </td></Can>
           </tr>)}
-          {filteredMembers.length === 0 && <tr><td className="team-members-empty" colSpan={6}>No team members found.</td></tr>}
+          {filteredMembers.length === 0 && <tr><td className="team-members-empty" colSpan={7}>No team members found.</td></tr>}
         </tbody>
       </table>
+      </LiveState>
     </div>
+    <Modal
+      open={Boolean(editing)}
+      title={editing ? `Change role - ${editing.name}` : ""}
+      okText="Save"
+      confirmLoading={savingRole}
+      okButtonProps={{ disabled: !newRoleId }}
+      onOk={saveRole}
+      onCancel={() => setEditing(null)}
+      centered
+    >
+      <p style={{ color: "var(--muted)" }}>The new role applies the next time this person signs in.</p>
+      <Select
+        style={{ width: "100%" }}
+        value={newRoleId || undefined}
+        onChange={setNewRoleId}
+        placeholder="Choose a role"
+        options={roles.map((r) => ({ value: r.id, label: roleLabel(r.name) }))}
+      />
+    </Modal>
   </div>;
 }

@@ -1,22 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  warehouseValuations,
-  categoryValuations,
-  movementSummaries,
-  recentTransactions,
-  lowStockItems,
-  recentAuditLogs,
   downloadCSV,
   generateConsolidatedCSV,
+  type AuditLogEntry,
   type LowStockItem,
 } from "./reports-data";
+import { usd, useReportData } from "@/features/reports/reports-live";
 
 type ActiveModal = "valuation" | "transactions" | "low_stock" | "audit" | null;
 
 export default function ReportsPage() {
+  const data = useReportData();
+  const warehouseValuations = data.warehouses;
+  const categoryValuations = data.categories;
+  const movementSummaries = data.movements;
+  const recentTransactions = useMemo(
+    () => data.transactions.slice(0, 10).map((t) => ({ ...t, reference: t.reference })),
+    [data.transactions]
+  );
+  const lowStockItems: LowStockItem[] = useMemo(
+    () =>
+      data.lowStock.map((i) => ({
+        id: i.id,
+        sku: i.sku,
+        name: i.name,
+        category: i.category,
+        warehouse: i.warehouse,
+        currentStock: i.onHand,
+        reorderPoint: i.reorderAt,
+        unit: "units",
+        deficit: i.deficit,
+        unitCost: i.unitCost,
+        status: i.onHand <= i.reorderAt / 2 ? "Critical" : "Low",
+      })),
+    [data.lowStock]
+  );
+  const recentAuditLogs: AuditLogEntry[] = useMemo(
+    () =>
+      data.history.slice(0, 15).map((h) => ({
+        id: h.id.slice(0, 8).toUpperCase(),
+        timestamp: new Date(h.at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }),
+        user: h.user,
+        userRole: "—",
+        action: h.type,
+        target: h.sku,
+        details: `${h.productName}: ${h.quantity > 0 ? "+" : ""}${h.quantity} at ${h.destinationWarehouse ? `${h.warehouse} → ${h.destinationWarehouse}` : h.warehouse}${h.reason ? ` (${h.reason})` : ""}`,
+        status: h.type === "Adjustment" ? ("Flagged" as const) : ("Success" as const),
+      })),
+    [data.history]
+  );
+  const avgPerUnit = data.totalUnits > 0 ? data.totalValue / data.totalUnits : 0;
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [lowStockFilter, setLowStockFilter] = useState<"All" | "Critical" | "Low">("All");
@@ -29,8 +65,15 @@ export default function ReportsPage() {
   }
 
   function handleQuickExportCSV() {
-    const csv = generateConsolidatedCSV();
-    downloadCSV("StockFlow_Consolidated_Reports_2026.csv", csv);
+    const csv = generateConsolidatedCSV({
+      warehouses: warehouseValuations,
+      movements: movementSummaries,
+      lowStock: lowStockItems,
+      audit: recentAuditLogs,
+      totalValue: data.totalValue,
+      totalUnits: data.totalUnits,
+    });
+    downloadCSV(`StockFlow_Consolidated_Reports_${new Date().toISOString().slice(0, 10)}.csv`, csv);
     showToast("Consolidated report CSV exported successfully.");
   }
 
@@ -47,7 +90,7 @@ export default function ReportsPage() {
       ...warehouseValuations.map(
         (w) => `"${w.warehouse}",${w.units},${w.value},${w.percentage}%`
       ),
-      `"Total",42850,284500,100%`,
+      `"Total",${data.totalUnits},${Math.round(data.totalValue)},100%`,
     ];
     downloadCSV("StockFlow_Valuation_Report.csv", lines.join("\n"));
     showToast("Stock valuation report CSV downloaded.");
@@ -118,7 +161,7 @@ export default function ReportsPage() {
         <Link
           href="/reports/valuation"
           className="report-card"
-          aria-label="Stock Valuation: Current on-hand value of all inventory across every warehouse. $284,500 current value"
+          aria-label={`Stock Valuation: Current on-hand value of all inventory across every warehouse. ${usd(data.totalValue)} current value`}
         >
           <div className="report-card-top">
             <div className="report-card-icon purple">
@@ -163,7 +206,7 @@ export default function ReportsPage() {
           </div>
 
           <div className="report-card-footer">
-            <span className="report-metric-val">$284,500</span>
+            <span className="report-metric-val">{usd(data.totalValue)}</span>
             <span className="report-metric-label">current value</span>
           </div>
         </Link>
@@ -172,7 +215,7 @@ export default function ReportsPage() {
         <Link
           href="/reports/transactions"
           className="report-card"
-          aria-label="Transaction Summary: All stock in, out, transfer and adjustment movements over a period. 1,330 movements this month"
+          aria-label={`Transaction Summary: All stock in, out, transfer and adjustment movements over a period. ${data.movementCount} movements in the last 30 days`}
         >
           <div className="report-card-top">
             <div className="report-card-icon purple">
@@ -217,8 +260,8 @@ export default function ReportsPage() {
           </div>
 
           <div className="report-card-footer">
-            <span className="report-metric-val">1,330</span>
-            <span className="report-metric-label">movements this month</span>
+            <span className="report-metric-val">{data.movementCount.toLocaleString("en-US")}</span>
+            <span className="report-metric-label">movements, last 30 days</span>
           </div>
         </Link>
 
@@ -226,7 +269,7 @@ export default function ReportsPage() {
         <Link
           href="/reports/low-stock"
           className="report-card"
-          aria-label="Low Stock Report: Items at or below their configured reorder point, by warehouse. 18 items below reorder point"
+          aria-label={`Low Stock Report: Items at or below their configured reorder point, by warehouse. ${lowStockItems.length} items below reorder point`}
         >
           <div className="report-card-top">
             <div className="report-card-icon amber">
@@ -280,7 +323,7 @@ export default function ReportsPage() {
         <Link
           href="/reports/audit"
           className="report-card"
-          aria-label="Audit Log: Full, timestamped history of every stock action and approval. 4,912 logged actions"
+          aria-label={`Audit Log: Full, timestamped history of every stock action and approval. ${data.history.length} logged actions`}
         >
           <div className="report-card-top">
             <div className="report-card-icon purple">
@@ -326,7 +369,7 @@ export default function ReportsPage() {
           </div>
 
           <div className="report-card-footer">
-            <span className="report-metric-val">4,912</span>
+            <span className="report-metric-val">{data.history.length.toLocaleString("en-US")}</span>
             <span className="report-metric-label">logged actions</span>
           </div>
         </Link>
@@ -424,15 +467,15 @@ export default function ReportsPage() {
             <div className="report-modal-stats-row">
               <div className="report-stat-pill">
                 <span className="stat-label">Total On-Hand Value</span>
-                <strong className="stat-value purple">$284,500</strong>
+                <strong className="stat-value purple">{usd(data.totalValue)}</strong>
               </div>
               <div className="report-stat-pill">
                 <span className="stat-label">Total Units</span>
-                <strong className="stat-value">42,850</strong>
+                <strong className="stat-value">{data.totalUnits.toLocaleString("en-US")}</strong>
               </div>
               <div className="report-stat-pill">
                 <span className="stat-label">Avg. Value per Unit</span>
-                <strong className="stat-value">$6.64</strong>
+                <strong className="stat-value">${avgPerUnit.toFixed(2)}</strong>
               </div>
             </div>
 
@@ -458,7 +501,7 @@ export default function ReportsPage() {
                           {w.units.toLocaleString()}
                         </td>
                         <td style={{ textAlign: "right", fontWeight: 600 }}>
-                          ${w.value.toLocaleString()}
+                          ${Math.round(w.value).toLocaleString()}
                         </td>
                         <td style={{ textAlign: "right" }}>
                           <span className="report-share-badge">{w.percentage}%</span>
@@ -488,7 +531,7 @@ export default function ReportsPage() {
                         <td>{c.category}</td>
                         <td style={{ textAlign: "right" }}>{c.itemCount}</td>
                         <td style={{ textAlign: "right", fontWeight: 600 }}>
-                          ${c.value.toLocaleString()}
+                          ${Math.round(c.value).toLocaleString()}
                         </td>
                         <td style={{ textAlign: "right" }}>
                           <span className="report-share-badge">{c.percentage}%</span>
@@ -539,7 +582,7 @@ export default function ReportsPage() {
                   Transaction Summary
                 </h2>
                 <p className="report-modal-desc">
-                  1,330 stock movements logged over the last 30 calendar days.
+                  {data.movementCount.toLocaleString("en-US")} stock movements logged over the last 30 calendar days.
                 </p>
               </div>
               <button
@@ -659,7 +702,7 @@ export default function ReportsPage() {
             <div className="report-modal-header">
               <div>
                 <h2 id="lowstock-modal-title" className="report-modal-title">
-                  Low Stock Items (18 Alerted)
+                  Low Stock Items ({lowStockItems.length} Alerted)
                 </h2>
                 <p className="report-modal-desc">
                   Products currently at or below minimum threshold requiring replenishment.
@@ -802,15 +845,15 @@ export default function ReportsPage() {
             <div className="report-modal-stats-row">
               <div className="report-stat-pill">
                 <span className="stat-label">Total Logged Actions</span>
-                <strong className="stat-value purple">4,912</strong>
+                <strong className="stat-value purple">{data.history.length.toLocaleString("en-US")}</strong>
               </div>
               <div className="report-stat-pill">
-                <span className="stat-label">This Month</span>
-                <strong className="stat-value">628</strong>
+                <span className="stat-label">Last 30 Days</span>
+                <strong className="stat-value">{data.movementCount.toLocaleString("en-US")}</strong>
               </div>
               <div className="report-stat-pill">
                 <span className="stat-label">Flagged Exceptions</span>
-                <strong className="stat-value" style={{ color: "#d97706" }}>3</strong>
+                <strong className="stat-value" style={{ color: "#d97706" }}>{recentAuditLogs.filter((l) => l.status === "Flagged").length}</strong>
               </div>
             </div>
 

@@ -3,113 +3,32 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { downloadCSV } from "./reports-data";
+import { LiveState } from "@/components/common/live-state";
+import { shortDate, useReportData } from "@/features/reports/reports-live";
 
 interface AuditRecord {
   id: string;
   dateTime: string;
   user: string;
-  action:
-    | "Stock In"
-    | "Rejected"
-    | "Approved"
-    | "Adjustment"
-    | "Signed in"
-    | "User invited"
-    | "Sent to supplier";
+  action: "Stock In" | "Stock Out" | "Transfer" | "Adjustment";
   target: string;
   details: string;
 }
 
-const auditRows: AuditRecord[] = [
-  {
-    id: "aud-1",
-    dateTime: "Aug 29, 9:14 AM",
-    user: "Dara",
-    action: "Stock In",
-    target: "Wireless Mouse M185",
-    details: "+50 units at Phnom Penh Main Warehouse",
-  },
-  {
-    id: "aud-2",
-    dateTime: "Aug 29, 8:40 AM",
-    user: "Visal",
-    action: "Rejected",
-    target: "PO-2039 • TechEdge Distribution",
-    details: "Reason: pricing above approved budget",
-  },
-  {
-    id: "aud-3",
-    dateTime: "Aug 28, 4:45 PM",
-    user: "Sokha",
-    action: "Approved",
-    target: "REQ-0141",
-    details: "Transfer 12 units, Phnom Penh Main → Siem Reap",
-  },
-  {
-    id: "aud-4",
-    dateTime: "Aug 28, 2:20 PM",
-    user: "Ravy",
-    action: "Adjustment",
-    target: "Desk Lamp LED",
-    details: "−2 units, damaged in Battambang Warehouse",
-  },
-  {
-    id: "aud-5",
-    dateTime: "Aug 28, 11:05 AM",
-    user: "Lina",
-    action: "Signed in",
-    target: "—",
-    details: "from 103.7.42.18",
-  },
-  {
-    id: "aud-6",
-    dateTime: "Aug 27, 3:30 PM",
-    user: "Dara",
-    action: "Stock In",
-    target: "USB-C Cable 2m",
-    details: "+40 units at Phnom Penh Main Warehouse",
-  },
-  {
-    id: "aud-7",
-    dateTime: "Aug 27, 10:12 AM",
-    user: "Admin",
-    action: "User invited",
-    target: "sokun@stockflow.io",
-    details: "Role: Warehouse Staff • Siem Reap Branch",
-  },
-  {
-    id: "aud-8",
-    dateTime: "Aug 26, 9:20 AM",
-    user: "Visal",
-    action: "Sent to supplier",
-    target: "PO-2041 • PaperCo Supplies",
-    details: "Order sent for confirmation",
-  },
-];
+const actionOptions = ["All Actions", "Stock In", "Stock Out", "Transfer", "Adjustment"];
 
-const actionOptions = [
-  "All Actions",
-  "Stock In",
-  "Rejected",
-  "Approved",
-  "Adjustment",
-  "Signed in",
-  "User invited",
-  "Sent to supplier",
+const PRESETS = [
+  { label: "Last 7 Days", days: 7 },
+  { label: "Last 14 Days", days: 14 },
+  { label: "Last 30 Days", days: 30 },
 ];
-
-const datePresets = [
-  "Aug 22 – Aug 29",
-  "Last 7 Days (Aug 22 – Aug 29)",
-  "Last 14 Days (Aug 15 – Aug 29)",
-  "This Month (Aug 2026)",
-  "Last Month (Jul 2026)",
-];
+const datePresets = PRESETS.map((p) => p.label);
 
 export default function AuditLogPage() {
+  const data = useReportData();
   const [selectedAction, setSelectedAction] = useState("All Actions");
   const [actionDropdownOpen, setActionDropdownOpen] = useState(false);
-  const [dateRange, setDateRange] = useState("Aug 22 – Aug 29");
+  const [dateRange, setDateRange] = useState(PRESETS[0].label);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -120,12 +39,35 @@ export default function AuditLogPage() {
     }, 3500);
   }
 
+  const auditRows: AuditRecord[] = useMemo(() => {
+    const days = PRESETS.find((p) => p.label === dateRange)?.days ?? 7;
+    const since = Date.now() - days * 86_400_000;
+    return data.history
+      .filter((h) => new Date(h.at).getTime() >= since)
+      .map((h) => {
+        const qty = Math.abs(h.quantity);
+        const where = h.destinationWarehouse ? `${h.warehouse} → ${h.destinationWarehouse}` : h.warehouse;
+        const sign = h.type === "Stock In" ? "+" : h.type === "Transfer" ? "" : h.quantity < 0 || h.type === "Stock Out" ? "−" : "+";
+        return {
+          id: h.id,
+          dateTime: new Date(h.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }),
+          user: h.user,
+          action: h.type,
+          target: h.productName,
+          details: `${sign}${qty} units${h.type === "Transfer" ? "," : " at"} ${where}${h.reason ? ` • ${h.reason}` : ""}`,
+        };
+      });
+  }, [data.history, dateRange]);
+
   const filteredLogs = useMemo(() => {
     if (selectedAction === "All Actions") {
       return auditRows;
     }
     return auditRows.filter((r) => r.action === selectedAction);
-  }, [selectedAction]);
+  }, [selectedAction, auditRows]);
+
+  const activeUsers = new Set(auditRows.map((r) => r.user).filter((u) => u && u !== "—")).size;
+  const adjustmentCount = auditRows.filter((r) => r.action === "Adjustment").length;
 
   function handleExport() {
     const lines = [
@@ -133,8 +75,8 @@ export default function AuditLogPage() {
       "STOCKFLOW - AUDIT LOG REPORT",
       `Period: ${dateRange}`,
       `Action Filter: ${selectedAction}`,
-      "Total Logged Actions: 4,912",
-      "Generated: Aug 29, 2026",
+      `Total Logged Actions: ${auditRows.length}`,
+      `Generated: ${shortDate(new Date())}`,
       "==================================================",
       "",
       "DATE / TIME,USER,ACTION,TARGET,DETAILS",
@@ -144,7 +86,7 @@ export default function AuditLogPage() {
       ),
     ];
 
-    downloadCSV("StockFlow_Audit_Log_Aug2026.csv", lines.join("\n"));
+    downloadCSV(`StockFlow_Audit_Log_${new Date().toISOString().slice(0, 10)}.csv`, lines.join("\n"));
     showToast("Audit log report exported successfully.");
   }
 
@@ -301,6 +243,7 @@ export default function AuditLogPage() {
         </div>
       </div>
 
+      <LiveState loading={data.loading && !data.loaded} error={data.error} onRetry={data.reload}>
       {/* Top 3 KPI Cards */}
       <div className="audit-log-kpi-grid">
         {/* Card 1: Logged actions */}
@@ -326,7 +269,7 @@ export default function AuditLogPage() {
             </div>
             <span className="audit-log-badge gray">this period</span>
           </div>
-          <div className="audit-log-kpi-metric">4,912</div>
+          <div className="audit-log-kpi-metric">{auditRows.length.toLocaleString("en-US")}</div>
           <div className="audit-log-kpi-label">Logged actions</div>
         </div>
 
@@ -351,13 +294,13 @@ export default function AuditLogPage() {
                 <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
             </div>
-            <span className="audit-log-badge gray">of 12 total</span>
+            <span className="audit-log-badge gray">this period</span>
           </div>
-          <div className="audit-log-kpi-metric">9</div>
+          <div className="audit-log-kpi-metric">{activeUsers}</div>
           <div className="audit-log-kpi-label">Active users</div>
         </div>
 
-        {/* Card 3: Rejections logged */}
+        {/* Card 3: Adjustments logged */}
         <div className="audit-log-kpi-card">
           <div className="audit-log-kpi-top">
             <div className="audit-log-kpi-icon red">
@@ -378,8 +321,8 @@ export default function AuditLogPage() {
             </div>
             <span className="audit-log-badge gray">this period</span>
           </div>
-          <div className="audit-log-kpi-metric">6</div>
-          <div className="audit-log-kpi-label">Rejections logged</div>
+          <div className="audit-log-kpi-metric">{adjustmentCount}</div>
+          <div className="audit-log-kpi-label">Adjustments logged</div>
         </div>
       </div>
 
@@ -406,14 +349,12 @@ export default function AuditLogPage() {
                   <td className="col-action">
                     <span
                       className={`audit-tag ${
-                        row.action === "Stock In" || row.action === "Approved"
+                        row.action === "Stock In"
                           ? "tag-green"
-                          : row.action === "Rejected"
+                          : row.action === "Stock Out"
                           ? "tag-red"
                           : row.action === "Adjustment"
                           ? "tag-amber"
-                          : row.action === "Signed in"
-                          ? "tag-gray"
                           : "tag-purple"
                       }`}
                     >
@@ -430,6 +371,7 @@ export default function AuditLogPage() {
           </table>
         </div>
       </div>
+      </LiveState>
     </div>
   );
 }

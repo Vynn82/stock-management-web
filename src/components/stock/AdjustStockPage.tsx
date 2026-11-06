@@ -4,15 +4,16 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { message } from "antd";
+import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
 
 interface AdjustStockPageProps {
   productId?: string;
 }
 
-export default function AdjustStockPage({ productId = "1" }: AdjustStockPageProps) {
+function AdjustStockPageInner({ productId = "1" }: AdjustStockPageProps) {
   const router = useRouter();
-  const { items, getItem, recordAdjustment } = useStockStore();
+  const { items, getItem, recordAdjustment, warehouseNames } = useStockStore();
   const [messageApi, contextHolder] = message.useMessage();
 
   // Selected product
@@ -23,7 +24,7 @@ export default function AdjustStockPage({ productId = "1" }: AdjustStockPageProp
 
   // Warehouse selection
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>(
-    product.warehouses[0]?.warehouse || "Phnom Penh Main Warehouse"
+    product.warehouses[0]?.warehouse || warehouseNames[0] || ""
   );
 
   // Adjustment type: "decrease" by default matching screenshot
@@ -37,7 +38,7 @@ export default function AdjustStockPage({ productId = "1" }: AdjustStockPageProp
 
   // Notes: matching screenshot pre-filled note
   const [notes, setNotes] = useState<string>(
-    "4 units found with crushed packaging during weekly cycle count — removed from sellable stock."
+    ""
   );
 
   const [submitting, setSubmitting] = useState(false);
@@ -47,18 +48,13 @@ export default function AdjustStockPage({ productId = "1" }: AdjustStockPageProp
     if (product.warehouses && product.warehouses.length > 0) {
       return product.warehouses.map((w) => w.warehouse);
     }
-    return [
-      "Phnom Penh Main Warehouse",
-      "Siem Reap Branch Warehouse",
-      "Battambang Warehouse",
-      "Sihanoukville Warehouse",
-    ];
-  }, [product]);
+    return warehouseNames;
+  }, [product, warehouseNames]);
 
   // Current stock on hand for selected warehouse
   const currentStock = useMemo(() => {
     const wh = product.warehouses.find((w) => w.warehouse === selectedWarehouse);
-    return wh ? wh.onHand : 42;
+    return wh ? wh.onHand : 0;
   }, [product, selectedWarehouse]);
 
   // Computed new stock
@@ -73,7 +69,7 @@ export default function AdjustStockPage({ productId = "1" }: AdjustStockPageProp
   const isOverDecrease = adjustmentType === "decrease" && quantity > currentStock;
 
   // Handle Confirm Adjustment
-  const handleConfirmAdjustment = () => {
+  const handleConfirmAdjustment = async () => {
     if (quantity <= 0) {
       messageApi.error("Please enter a valid quantity greater than 0.");
       return;
@@ -92,7 +88,7 @@ export default function AdjustStockPage({ productId = "1" }: AdjustStockPageProp
         ? `${reason} — ${notes.trim()}`
         : reason;
 
-      recordAdjustment(
+      await recordAdjustment(
         product.id,
         selectedWarehouse,
         newStock,
@@ -106,8 +102,8 @@ export default function AdjustStockPage({ productId = "1" }: AdjustStockPageProp
       setTimeout(() => {
         router.push(`/stock/${product.id}`);
       }, 700);
-    } catch {
-      messageApi.error("An error occurred while saving the stock adjustment.");
+    } catch (err) {
+      messageApi.error(err instanceof Error ? err.message : "An error occurred while saving the stock adjustment.");
       setSubmitting(false);
     }
   };
@@ -438,5 +434,13 @@ export default function AdjustStockPage({ productId = "1" }: AdjustStockPageProp
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdjustStockPage(props: React.ComponentProps<typeof AdjustStockPageInner>) {
+  return (
+    <StockGate productId={props.productId}>
+      <AdjustStockPageInner {...props} />
+    </StockGate>
   );
 }

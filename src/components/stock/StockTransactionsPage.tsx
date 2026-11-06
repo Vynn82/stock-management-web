@@ -3,9 +3,10 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { message } from "antd";
+import StockGate from "./StockGate";
 import { useStockStore, GlobalStockTransaction } from "@/store/stockStore";
 
-export default function StockTransactionsPage() {
+function StockTransactionsPageInner() {
   const { globalTransactions } = useStockStore();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -288,5 +289,13 @@ export default function StockTransactionsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StockTransactionsPage() {
+  return (
+    <StockGate>
+      <StockTransactionsPageInner />
+    </StockGate>
   );
 }

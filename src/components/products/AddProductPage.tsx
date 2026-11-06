@@ -1,44 +1,98 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { message } from "antd";
-import { useProductsStore } from "@/store/productsStore";
-import { Product } from "@/types/inventory";
+import { ApiError } from "@/features/live/http";
+import { LookupOption, fetchBrands, fetchCategories, fetchSuppliers, fetchWarehouses } from "@/features/live/lookups";
+import { createProduct, NewVariantInput } from "@/features/products/products-live.api";
 
 interface AddProductPageProps {
   onCancel?: () => void;
   onSuccess?: () => void;
 }
 
+const num = (v: string): number | undefined => {
+  const n = parseFloat(v.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) ? n : undefined;
+};
+
+interface VariantDraft {
+  key: number;
+  name: string;
+  sku: string;
+  barcode: string;
+  cost: string;
+  sell: string;
+  warehouseCode: string;
+  quantity: string;
+  location: string;
+}
+
+let variantKey = 0;
+const newVariant = (): VariantDraft => ({ key: ++variantKey, name: "", sku: "", barcode: "", cost: "", sell: "", warehouseCode: "", quantity: "", location: "" });
+
 export default function AddProductPage({ onCancel, onSuccess }: AddProductPageProps) {
   const router = useRouter();
-  const { addProduct } = useProductsStore();
   const [messageApi, contextHolder] = message.useMessage();
 
-  // Form states with default values from the screenshot
-  const [productName, setProductName] = useState("Wireless Mouse M185");
-  const [sku, setSku] = useState("WM-M185-BLK");
-  const [category, setCategory] = useState("Electronics");
-  const [description, setDescription] = useState(
-    "Ergonomic wireless mouse with 1600 DPI optical sensor and 18-month battery life."
-  );
-  const [unitCost, setUnitCost] = useState("$8.50");
-  const [reorderPoint, setReorderPoint] = useState("15 units");
-  const [warehouse, setWarehouse] = useState("Phnom Penh Main");
-  const [status, setStatus] = useState<"Active" | "Draft">("Active");
+  // Lists behind the pickers
+  const [categories, setCategories] = useState<LookupOption[]>([]);
+  const [brands, setBrands] = useState<LookupOption[]>([]);
+  const [suppliers, setSuppliers] = useState<LookupOption[]>([]);
+  const [warehouses, setWarehouses] = useState<LookupOption[]>([]);
+  const [loadError, setLoadError] = useState("");
+
+  // Form
+  const [productName, setProductName] = useState("");
+  const [sku, setSku] = useState("");
+  const [barcode, setBarcode] = useState("");
+  const [categoryCode, setCategoryCode] = useState("");
+  const [brandCode, setBrandCode] = useState("");
+  const [supplierCode, setSupplierCode] = useState("");
+  const [unit, setUnit] = useState("PCS");
+  const [description, setDescription] = useState("");
+  const [unitCost, setUnitCost] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [minStock, setMinStock] = useState("");
+  const [warehouseCode, setWarehouseCode] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [location, setLocation] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [hasVariants, setHasVariants] = useState(false);
+  const [variantRows, setVariantRows] = useState<VariantDraft[]>([]);
+
+  const toggleVariants = (on: boolean) => {
+    setHasVariants(on);
+    if (on && variantRows.length === 0) setVariantRows([newVariant()]);
+  };
+  const patchVariant = (key: number, patch: Partial<VariantDraft>) =>
+    setVariantRows((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
   // Image upload state
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    Promise.all([fetchCategories(), fetchBrands(), fetchSuppliers(), fetchWarehouses()])
+      .then(([c, b, s, w]) => {
+        setCategories(c);
+        setBrands(b);
+        setSuppliers(s);
+        setWarehouses(w);
+      })
+      .catch((err) => setLoadError(err instanceof ApiError ? err.message : "Could not load categories and warehouses."));
+  }, []);
 
   const handleImageFile = (file: File) => {
     if (!file.type.startsWith("image/")) {
       messageApi.error("Please upload an image file.");
       return;
     }
+    setImageFile(file);
     const reader = new FileReader();
     reader.onload = (e) => {
       setImagePreview(e.target?.result as string);
@@ -76,42 +130,55 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
     }
   };
 
-  const handleSave = () => {
-    if (!productName.trim()) {
-      messageApi.error("Please enter a product name.");
-      return;
-    }
-    if (!sku.trim()) {
-      messageApi.error("Please enter a SKU.");
-      return;
-    }
-
-    // Clean numeric values
-    const rawCost = parseFloat(unitCost.replace(/[^0-9.]/g, "")) || 8.5;
-    const rawReorder = parseInt(reorderPoint.replace(/[^0-9]/g, ""), 10) || 15;
-
-    const newProduct: Product = {
-      key: `prod-${Date.now()}`,
-      name: productName.trim(),
-      sku: sku.trim(),
-      category: category,
-      warehouse: warehouse.replace(" Main", "").replace(" Branch", "").replace(" Hub", "").replace(" Depot", ""),
-      stock: 120, // default healthy initial stock for new item
-      reorder: rawReorder,
-      status: "In stock",
-      price: rawCost * 1.5, // sensible retail margin
-    };
-
-    addProduct(newProduct);
-    messageApi.success("Product created successfully!");
-
-    setTimeout(() => {
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        router.push("/products");
+  const handleSave = async () => {
+    if (saving) return;
+    if (!productName.trim()) return void messageApi.error("Please enter a product name.");
+    if (!categoryCode) return void messageApi.error("Please choose a category.");
+    let variantInputs: NewVariantInput[] | undefined;
+    let qty = num(quantity) ?? 0;
+    if (hasVariants) {
+      if (variantRows.length === 0) return void messageApi.error("Add at least one variant.");
+      variantInputs = [];
+      for (let i = 0; i < variantRows.length; i++) {
+        const r = variantRows[i];
+        if (!r.name.trim()) return void messageApi.error(`Variant ${i + 1}: enter a name.`);
+        if (!r.warehouseCode) return void messageApi.error(`Variant ${i + 1}: choose a warehouse.`);
+        const q = num(r.quantity);
+        if (!q || q < 1) return void messageApi.error(`Variant ${i + 1}: enter a quantity of at least 1.`);
+        variantInputs.push({ name: r.name, sku: r.sku, barcode: r.barcode, costPrice: num(r.cost), sellingPrice: num(r.sell), warehouseCode: r.warehouseCode, quantity: q, location: r.location });
       }
-    }, 400);
+      qty = 1;
+    } else {
+      if (!warehouseCode) return void messageApi.error("Please choose the warehouse the stock goes into.");
+      if (!qty || qty < 1) return void messageApi.error("Enter an initial quantity of at least 1.");
+    }
+
+    setSaving(true);
+    try {
+      await createProduct({
+        name: productName,
+        sku,
+        barcode,
+        description,
+        categoryCode,
+        brandCode: brandCode || undefined,
+        supplierCode: supplierCode || undefined,
+        unit,
+        minimumStock: num(minStock),
+        costPrice: num(unitCost),
+        sellingPrice: num(sellingPrice),
+        warehouseCode,
+        quantity: qty,
+        location,
+        image: imageFile,
+        variants: variantInputs,
+      });
+      messageApi.success("Product created.");
+      setTimeout(() => (onSuccess ? onSuccess() : router.push("/products")), 400);
+    } catch (err) {
+      messageApi.error(err instanceof ApiError ? err.message : "Could not save the product.");
+      setSaving(false);
+    }
   };
 
   return (
@@ -120,12 +187,16 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
 
       {/* Top Breadcrumbs */}
       <div className="add-product-breadcrumbs">
-        <Link href="/products" className="crumb-link" onClick={(e) => {
-          if (onCancel) {
-            e.preventDefault();
-            onCancel();
-          }
-        }}>
+        <Link
+          href="/products"
+          className="crumb-link"
+          onClick={(e) => {
+            if (onCancel) {
+              e.preventDefault();
+              onCancel();
+            }
+          }}
+        >
           Products
         </Link>
         <span className="crumb-sep">/</span>
@@ -136,95 +207,113 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
       <div className="add-product-header">
         <h1 className="add-product-title">Add Product</h1>
         <div className="add-product-actions">
-          <button
-            type="button"
-            className="btn-add-product-cancel"
-            onClick={handleCancel}
-          >
+          <button type="button" className="btn-add-product-cancel" onClick={handleCancel} disabled={saving}>
             Cancel
           </button>
-          <button
-            type="button"
-            className="btn-add-product-save"
-            onClick={handleSave}
-          >
-            Save Product
+          <button type="button" className="btn-add-product-save" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save Product"}
           </button>
         </div>
       </div>
 
+      {loadError && (
+        <p role="alert" style={{ color: "#DC2626", margin: "0 0 12px" }}>
+          {loadError}
+        </p>
+      )}
+
       {/* Main Form Grid */}
       <div className="add-product-grid">
-        {/* Left Column: Basic Information & Stock & Pricing */}
         <div className="add-product-col-main">
           {/* Card 1: Basic Information */}
           <div className="add-product-card">
             <h2 className="card-section-title">Basic information</h2>
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="product-name">
-                Product name
-              </label>
-              <input
-                id="product-name"
-                type="text"
-                className="form-input"
-                placeholder="Product name"
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-              />
-            </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="product-name">
+                  Product name *
+                </label>
+                <input id="product-name" type="text" className="form-input" placeholder="Product name" value={productName} onChange={(e) => setProductName(e.target.value)} />
+              </div>
 
             <div className="form-row-two-cols">
               <div className="form-group">
                 <label className="form-label" htmlFor="product-sku">
-                  SKU
+                  SKU (optional — generated if empty)
                 </label>
-                <input
-                  id="product-sku"
-                  type="text"
-                  className="form-input"
-                  placeholder="SKU"
-                  value={sku}
-                  onChange={(e) => setSku(e.target.value)}
-                />
+                <input id="product-sku" type="text" className="form-input" placeholder="SKU" value={sku} onChange={(e) => setSku(e.target.value)} />
               </div>
-
               <div className="form-group">
                 <label className="form-label" htmlFor="product-category">
-                  Category
+                  Category *
                 </label>
                 <div className="select-container">
-                  <select
-                    id="product-category"
-                    className="form-select"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                  >
-                    <option value="Electronics">Electronics</option>
-                    <option value="Computers">Computers</option>
-                    <option value="Accessories">Accessories</option>
-                    <option value="Furniture">Furniture</option>
-                    <option value="Stationery">Stationery</option>
-                    <option value="Packaging">Packaging</option>
-                    <option value="Office">Office</option>
+                  <select id="product-category" className="form-select" value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)}>
+                    <option value="">Select a category</option>
+                    {categories.map((o) => (
+                      <option key={o.code} value={o.code}>
+                        {o.name}
+                      </option>
+                    ))}
                   </select>
-                  <svg
-                    className="select-chevron"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
+                  <svg className="select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </div>
               </div>
             </div>
+
+            <div className="form-row-three-cols">
+              <div className="form-group">
+                <label className="form-label" htmlFor="product-brand">
+                  Brand
+                </label>
+                <div className="select-container">
+                  <select id="product-brand" className="form-select" value={brandCode} onChange={(e) => setBrandCode(e.target.value)}>
+                    <option value="">No brand</option>
+                    {brands.map((o) => (
+                      <option key={o.code} value={o.code}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
+                  <svg className="select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="product-supplier">
+                  Supplier
+                </label>
+                <div className="select-container">
+                  <select id="product-supplier" className="form-select" value={supplierCode} onChange={(e) => setSupplierCode(e.target.value)}>
+                    <option value="">No supplier</option>
+                    {suppliers.map((o) => (
+                      <option key={o.code} value={o.code}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
+                  <svg className="select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="product-unit">
+                  Unit
+                </label>
+                <input id="product-unit" type="text" className="form-input" placeholder="PCS" value={unit} onChange={(e) => setUnit(e.target.value)} />
+              </div>
+            </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="product-barcode">
+                  Barcode (optional)
+                </label>
+                <input id="product-barcode" type="text" className="form-input" placeholder="Barcode" value={barcode} onChange={(e) => setBarcode(e.target.value)} />
+              </div>
 
             <div className="form-group">
               <label className="form-label" htmlFor="product-description">
@@ -245,71 +334,138 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
           <div className="add-product-card">
             <h2 className="card-section-title">Stock & pricing</h2>
 
+            <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 14px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
+              <input type="checkbox" checked={hasVariants} onChange={(e) => toggleVariants(e.target.checked)} />
+              This product has variants (size, colour…) — each variant has its own price and stock
+            </label>
+
             <div className="form-row-three-cols">
+              {!hasVariants && (<>
               <div className="form-group">
                 <label className="form-label" htmlFor="unit-cost">
-                  Unit cost
+                  Unit cost ($)
                 </label>
-                <input
-                  id="unit-cost"
-                  type="text"
-                  className="form-input"
-                  placeholder="$8.50"
-                  value={unitCost}
-                  onChange={(e) => setUnitCost(e.target.value)}
-                />
+                <input id="unit-cost" type="text" className="form-input" placeholder="0.00" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} inputMode="decimal" />
               </div>
-
+              <div className="form-group">
+                <label className="form-label" htmlFor="selling-price">
+                  Selling price ($)
+                </label>
+                <input id="selling-price" type="text" className="form-input" placeholder="0.00" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} inputMode="decimal" />
+              </div>
+              </>)}
               <div className="form-group">
                 <label className="form-label" htmlFor="reorder-point">
-                  Reorder point
+                  Reorder point (units)
                 </label>
-                <input
-                  id="reorder-point"
-                  type="text"
-                  className="form-input"
-                  placeholder="15 units"
-                  value={reorderPoint}
-                  onChange={(e) => setReorderPoint(e.target.value)}
-                />
+                <input id="reorder-point" type="text" className="form-input" placeholder="e.g. 15" value={minStock} onChange={(e) => setMinStock(e.target.value)} inputMode="numeric" />
               </div>
+            </div>
 
+            {!hasVariants && (
+            <div className="form-row-three-cols">
               <div className="form-group">
                 <label className="form-label" htmlFor="initial-warehouse">
-                  Initial warehouse
+                  Initial warehouse *
                 </label>
                 <div className="select-container">
-                  <select
-                    id="initial-warehouse"
-                    className="form-select"
-                    value={warehouse}
-                    onChange={(e) => setWarehouse(e.target.value)}
-                  >
-                    <option value="Phnom Penh Main">Phnom Penh Main</option>
-                    <option value="Siem Reap Branch">Siem Reap Branch</option>
-                    <option value="Battambang Hub">Battambang Hub</option>
-                    <option value="Kampong Cham Depot">Kampong Cham Depot</option>
+                  <select id="initial-warehouse" className="form-select" value={warehouseCode} onChange={(e) => setWarehouseCode(e.target.value)}>
+                    <option value="">Select a warehouse</option>
+                    {warehouses.map((o) => (
+                      <option key={o.code} value={o.code}>
+                        {o.name}
+                      </option>
+                    ))}
                   </select>
-                  <svg
-                    className="select-chevron"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
+                  <svg className="select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </div>
               </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="initial-qty">
+                  Initial quantity *
+                </label>
+                <input id="initial-qty" type="text" className="form-input" placeholder="e.g. 50" value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="numeric" />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="initial-location">
+                  Location (optional)
+                </label>
+                <input id="initial-location" type="text" className="form-input" placeholder="e.g. Shelf A2" value={location} onChange={(e) => setLocation(e.target.value)} />
+              </div>
             </div>
+            )}
           </div>
+
+          {hasVariants && (
+            <div className="add-product-card">
+              <h2 className="card-section-title">Variants</h2>
+              {variantRows.map((r, i) => (
+                <div key={r.key} style={{ border: "1px solid #ECE9F3", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <strong style={{ fontSize: 13.5 }}>Variant {i + 1}</strong>
+                    {variantRows.length > 1 && (
+                      <button type="button" className="btn-remove-image" onClick={() => setVariantRows((rows) => rows.filter((x) => x.key !== r.key))}>
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <div className="form-row-three-cols">
+                    <div className="form-group">
+                      <label className="form-label">Name *</label>
+                      <input type="text" className="form-input" placeholder="e.g. Red / L" value={r.name} onChange={(e) => patchVariant(r.key, { name: e.target.value })} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">SKU</label>
+                      <input type="text" className="form-input" placeholder="optional" value={r.sku} onChange={(e) => patchVariant(r.key, { sku: e.target.value })} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Barcode</label>
+                      <input type="text" className="form-input" placeholder="optional" value={r.barcode} onChange={(e) => patchVariant(r.key, { barcode: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="form-row-three-cols">
+                    <div className="form-group">
+                      <label className="form-label">Unit cost ($)</label>
+                      <input type="text" className="form-input" placeholder="0.00" inputMode="decimal" value={r.cost} onChange={(e) => patchVariant(r.key, { cost: e.target.value })} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Selling price ($)</label>
+                      <input type="text" className="form-input" placeholder="0.00" inputMode="decimal" value={r.sell} onChange={(e) => patchVariant(r.key, { sell: e.target.value })} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Quantity *</label>
+                      <input type="text" className="form-input" placeholder="e.g. 20" inputMode="numeric" value={r.quantity} onChange={(e) => patchVariant(r.key, { quantity: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="form-row-two-cols">
+                    <div className="form-group">
+                      <label className="form-label">Warehouse *</label>
+                      <div className="select-container">
+                      <select className="form-select" value={r.warehouseCode} onChange={(e) => patchVariant(r.key, { warehouseCode: e.target.value })}>
+                        <option value="">Select a warehouse</option>
+                        {warehouses.map((o) => (
+                          <option key={o.code} value={o.code}>{o.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Location</label>
+                      <input type="text" className="form-input" placeholder="e.g. Shelf A2" value={r.location} onChange={(e) => patchVariant(r.key, { location: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button type="button" className="btn-add-product-cancel" onClick={() => setVariantRows((rows) => [...rows, newVariant()])}>
+                + Add variant
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Right Column: Product Image & Status */}
+        {/* Right Column: Product Image */}
         <div className="add-product-col-side">
           {/* Card 1: Product Image */}
           <div className="add-product-card">
@@ -333,7 +489,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                 <button
                   type="button"
                   className="btn-remove-image"
-                  onClick={() => setImagePreview(null)}
+                  onClick={() => { setImagePreview(null); setImageFile(null); }}
                 >
                   Remove image
                 </button>
@@ -372,53 +528,6 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                 <p className="dropzone-text">Drag an image or click to upload</p>
               </div>
             )}
-          </div>
-
-          {/* Card 2: Status */}
-          <div className="add-product-card">
-            <h2 className="card-section-title">Status</h2>
-
-            <div className="status-options-list">
-              {/* Active Option */}
-              <div
-                className={`status-option-item ${status === "Active" ? "selected" : ""}`}
-                onClick={() => setStatus("Active")}
-                role="radio"
-                aria-checked={status === "Active"}
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") setStatus("Active");
-                }}
-              >
-                <div className="status-radio-indicator">
-                  <span className="status-radio-inner" />
-                </div>
-                <div className="status-option-text">
-                  <strong className="status-name">Active</strong>
-                  <span className="status-desc"> — visible in stock lists</span>
-                </div>
-              </div>
-
-              {/* Draft Option */}
-              <div
-                className={`status-option-item ${status === "Draft" ? "selected" : ""}`}
-                onClick={() => setStatus("Draft")}
-                role="radio"
-                aria-checked={status === "Draft"}
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") setStatus("Draft");
-                }}
-              >
-                <div className="status-radio-indicator">
-                  <span className="status-radio-inner" />
-                </div>
-                <div className="status-option-text">
-                  <strong className="status-name">Draft</strong>
-                  <span className="status-desc"> — hidden until published</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

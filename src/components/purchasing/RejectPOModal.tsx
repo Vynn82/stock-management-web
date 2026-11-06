@@ -6,7 +6,9 @@ import { CloseOutlined } from "@ant-design/icons";
 interface RejectPOModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirmReject: (reason: string) => void;
+  onConfirmReject: (reason: string) => void | Promise<void>;
+  busy?: boolean;
+  error?: string;
   poId: string;
   supplierName: string;
   defaultReason?: string;
@@ -19,11 +21,10 @@ export default function RejectPOModal({
   poId,
   supplierName,
   defaultReason,
+  busy = false,
+  error = "",
 }: RejectPOModalProps) {
-  const [reason, setReason] = useState(
-    defaultReason ||
-      "Phnom Penh Main Warehouse needs to keep at least 20 units in reserve this week — please resubmit for a smaller quantity.",
-  );
+  const [reason, setReason] = useState(defaultReason || "");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -106,6 +107,7 @@ export default function RejectPOModal({
         <p className="po-reject-helper">
           Saved to the request&apos;s activity log and shared with the requester.
         </p>
+        {error && <p className="po-reject-helper" role="alert" style={{ color: "#dc2626" }}>{error}</p>}
 
         <div className="po-reject-actions">
           <button
@@ -115,8 +117,8 @@ export default function RejectPOModal({
           >
             Cancel
           </button>
-          <button className="po-reject-submit-btn" type="submit">
-            <CloseOutlined /> Reject Request
+          <button className="po-reject-submit-btn" type="submit" disabled={busy}>
+            <CloseOutlined /> {busy ? "Working…" : "Reject Request"}
           </button>
         </div>
       </form>

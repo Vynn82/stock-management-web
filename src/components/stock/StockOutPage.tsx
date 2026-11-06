@@ -4,15 +4,16 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { message } from "antd";
+import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
 
 interface StockOutPageProps {
   productId?: string;
 }
 
-export default function StockOutPage({ productId = "2" }: StockOutPageProps) {
+function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
   const router = useRouter();
-  const { items, getItem, recordStockOut } = useStockStore();
+  const { items, getItem, recordStockOut, warehouseNames } = useStockStore();
   const [messageApi, contextHolder] = message.useMessage();
 
   // Selected product (defaults to USB-C Cable 2m / id "2" to match screenshot)
@@ -23,7 +24,7 @@ export default function StockOutPage({ productId = "2" }: StockOutPageProps) {
 
   // Warehouse selection
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>(
-    product.warehouses[0]?.warehouse || "Phnom Penh Main Warehouse"
+    product.warehouses[0]?.warehouse || warehouseNames[0] || ""
   );
 
   // Quantity (5 by default matching screenshot)
@@ -34,28 +35,20 @@ export default function StockOutPage({ productId = "2" }: StockOutPageProps) {
 
   // Notes (prefilled matching screenshot)
   const [notes, setNotes] = useState<string>(
-    "Water damage found on 5 units during the weekly cycle count in Aisle 3."
+    ""
   );
 
   const [submitting, setSubmitting] = useState(false);
 
   // Warehouse options
   const warehouseOptions = useMemo(() => {
-    if (product.warehouses && product.warehouses.length > 0) {
-      return product.warehouses.map((w) => w.warehouse);
-    }
-    return [
-      "Phnom Penh Main Warehouse",
-      "Siem Reap Branch Warehouse",
-      "Battambang Warehouse",
-      "Sihanoukville Warehouse",
-    ];
-  }, [product]);
+    return product.warehouses.filter((w) => w.onHand > 0).map((w) => w.warehouse);
+  }, [product, warehouseNames]);
 
   // Current stock on hand for selected warehouse
   const currentStock = useMemo(() => {
     const wh = product.warehouses.find((w) => w.warehouse === selectedWarehouse);
-    return wh ? wh.onHand : 8;
+    return wh ? wh.onHand : 0;
   }, [product, selectedWarehouse]);
 
   // Computed after stock
@@ -64,7 +57,7 @@ export default function StockOutPage({ productId = "2" }: StockOutPageProps) {
   const isBelowReorder = afterStock < product.reorderPoint;
 
   // Handle Confirm Stock Out
-  const handleConfirmStockOut = () => {
+  const handleConfirmStockOut = async () => {
     if (quantity <= 0) {
       messageApi.error("Please enter a valid stock out quantity greater than 0.");
       return;
@@ -83,7 +76,7 @@ export default function StockOutPage({ productId = "2" }: StockOutPageProps) {
         ? `${reason} — ${notes.trim()}`
         : reason;
 
-      recordStockOut(
+      await recordStockOut(
         product.id,
         selectedWarehouse,
         quantity,
@@ -97,8 +90,8 @@ export default function StockOutPage({ productId = "2" }: StockOutPageProps) {
       setTimeout(() => {
         router.push(`/stock/${product.id}`);
       }, 700);
-    } catch {
-      messageApi.error("An error occurred while processing stock out.");
+    } catch (err) {
+      messageApi.error(err instanceof Error ? err.message : "An error occurred while processing stock out.");
       setSubmitting(false);
     }
   };
@@ -411,5 +404,13 @@ export default function StockOutPage({ productId = "2" }: StockOutPageProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StockOutPage(props: React.ComponentProps<typeof StockOutPageInner>) {
+  return (
+    <StockGate productId={props.productId}>
+      <StockOutPageInner {...props} />
+    </StockGate>
   );
 }

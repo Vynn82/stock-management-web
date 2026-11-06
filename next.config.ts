@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
-const rawBackend = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+// Production backend by default. Only an explicit BACKEND_URL points it elsewhere.
+const rawBackend = process.env.BACKEND_URL || "https://stock.theavin.xyz";
 const targetBackend = rawBackend.replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {

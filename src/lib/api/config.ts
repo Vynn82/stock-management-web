@@ -1,4 +1,5 @@
-const rawUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/";
+// Production backend by default. Only an explicit BACKEND_URL points it elsewhere.
+const rawUrl = process.env.BACKEND_URL || "https://stock.theavin.xyz/";
 const isBrowser = typeof window !== "undefined";
 
 export const config = {
