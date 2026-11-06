@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input, Modal, Select, message } from "antd";
-import { CaretDownOutlined, CheckOutlined, PlusOutlined, SafetyCertificateOutlined, SearchOutlined } from "@ant-design/icons";
+import { CaretDownOutlined, CheckOutlined, EditOutlined, PlusOutlined, SafetyCertificateOutlined, SearchOutlined } from "@ant-design/icons";
 import { LiveState, errorText } from "@/components/common/live-state";
 import { useAuth } from "@/hooks/use-auth";
 import { changeMemberRole, fetchRoles, fetchTeamMembers, roleLabel, type RoleRow, type TeamMemberRow } from "@/features/users/users-live";
@@ -166,7 +166,7 @@ export default function UsersPage() {
           <th scope="col">Role</th>
           <th scope="col">Status</th>
           <th scope="col">Joined</th>
-          <Can any="USER_ROLE_UPDATE"><th scope="col"><span className="sr-only">Actions</span></th></Can>
+          <Can any="USER_ROLE_UPDATE"><th scope="col" className="team-member-actions-col">Actions</th></Can>
         </tr></thead>
         <tbody>
           {filteredMembers.map((member) => <tr key={member.id}>
@@ -180,8 +180,8 @@ export default function UsersPage() {
             <td><span className={`team-member-role team-member-role-${member.roleClass}`}>{member.role}</span></td>
             <td><span className={`team-member-status ${member.status === "Active" ? "active" : "pending"}`}>{member.status}</span></td>
             <td>{member.joined}</td>
-            <Can any="USER_ROLE_UPDATE"><td style={{ textAlign: "right" }}>
-              {!(user?.staffId && member.staffId === user.staffId) && <Button size="small" onClick={() => openChangeRole(member)}>Change role</Button>}
+            <Can any="USER_ROLE_UPDATE"><td className="team-member-actions">
+              {!(user?.staffId && member.staffId === user.staffId) && <button type="button" className="team-member-action-btn" onClick={() => openChangeRole(member)} aria-label={`Change role for ${member.name}`}><EditOutlined />Change role</button>}
             </td></Can>
           </tr>)}
           {filteredMembers.length === 0 && <tr><td className="team-members-empty" colSpan={7}>No team members found.</td></tr>}
