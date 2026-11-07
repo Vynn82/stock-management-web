@@ -97,6 +97,8 @@ export default function ProductsPage() {
             ]}
           />
           <Select
+            showSearch
+            optionFilterProp="label"
             value={category}
             onChange={setCategory}
             options={[{ value: "all", label: "All categories" }, ...categories.map((c) => ({ value: c, label: c }))]}

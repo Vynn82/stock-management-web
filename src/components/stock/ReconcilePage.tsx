@@ -208,6 +208,8 @@ export default function ReconcilePage() {
           <label style={{ flex: "1 1 260px", maxWidth: 360 }}>
             <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Warehouse</div>
             <Select
+              showSearch
+              optionFilterProp="label"
               style={{ width: "100%" }}
               placeholder="Choose a warehouse"
               value={warehouse}

@@ -108,6 +108,8 @@ export interface NewVariantInput {
   warehouseCode: string;
   quantity: number;
   location?: string;
+  /** Required: every variant of a new product has its own photo. */
+  image: File;
 }
 
 /** `POST /products` (multipart: product / variants / stock JSON + image). */
@@ -156,6 +158,9 @@ export async function createProduct(input: NewProductInput): Promise<void> {
   form.append("variants", JSON.stringify(variants));
   form.append("stock", JSON.stringify(stocks));
   if (input.image) form.append("image", input.image);
+  if (hasVariants) {
+    input.variants!.forEach((v, i) => form.append(`variantImage[V${i + 1}]`, v.image));
+  }
   await api.postForm("products", form);
 }
 
@@ -183,7 +188,7 @@ export interface ProductDetail {
   status: StockStatus;
   hasVariants: boolean;
   warehouseStocks: { code: string; name: string; location: string; quantity: number }[];
-  variants: { id: string; code: string; name: string; sku: string; barcode: string; attributes: string; costPrice: number | null; sellingPrice: number | null; quantity: number }[];
+  variants: { id: string; code: string; name: string; sku: string; barcode: string; image?: string; attributes: string; costPrice: number | null; sellingPrice: number | null; quantity: number }[];
 }
 
 interface ApiDetail extends ApiProduct {
@@ -196,6 +201,7 @@ interface ApiDetail extends ApiProduct {
     name?: string;
     sku?: string;
     barcode?: string | null;
+    image?: string | null;
     attributes?: Record<string, string> | null;
     costPrice?: number | null;
     sellingPrice?: number | null;
@@ -252,6 +258,7 @@ export async function fetchProduct(id: string): Promise<ProductDetail> {
       name: v.name ?? "",
       sku: v.sku ?? "",
       barcode: v.barcode ?? "",
+      image: v.image || undefined,
       attributes: v.attributes ? Object.entries(v.attributes).map(([k, val]) => `${k}: ${val}`).join(", ") : "",
       costPrice: v.costPrice != null ? Number(v.costPrice) : null,
       sellingPrice: v.sellingPrice != null ? Number(v.sellingPrice) : null,
@@ -282,6 +289,13 @@ export async function updateProduct(id: string, input: EditProductInput): Promis
 }
 
 /** `POST /products/:id/image` (needs PRODUCT_IMAGE). */
+/** `POST /product-variants/:id/image` (needs PRODUCT_IMAGE). */
+export async function updateVariantImage(variantId: string, file: File): Promise<void> {
+  const form = new FormData();
+  form.append("image", file);
+  await api.postForm(`product-variants/${variantId}/image`, form);
+}
+
 export async function updateProductImage(id: string, file: File): Promise<void> {
   const form = new FormData();
   form.append("image", file);

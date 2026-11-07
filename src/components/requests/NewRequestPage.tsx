@@ -7,6 +7,7 @@ import { CaretDownOutlined, CheckOutlined } from "@ant-design/icons";
 import { LiveState, errorText } from "@/components/common/live-state";
 import { useLiveStock } from "@/features/stock/stock-live";
 import { createStockRequest, fetchApproverCandidates, type ApproverCandidate } from "@/features/requests/requests-live";
+import SearchSelect from "@/components/ui/SearchSelect";
 
 type RequestType = "Transfer" | "Stock Out" | "Stock In" | "Adjustment";
 const COLORS = ["sand", "lavender", "blue", "green"];
@@ -150,9 +151,9 @@ export default function NewRequestPage() {
             <div className="new-request-product-field">
               <label htmlFor="request-product">Product</label>
               <div className="new-request-select-wrap">
-                <select id="request-product" value={productCode} onChange={(event) => setProductCode(event.target.value)}>
+                <SearchSelect id="request-product" value={productCode} onChange={(event) => setProductCode(event.target.value)}>
                   {products.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
-                </select>
+                </SearchSelect>
                 <CaretDownOutlined />
               </div>
             </div>
@@ -179,9 +180,9 @@ export default function NewRequestPage() {
               <div>
                 <label htmlFor="request-from-warehouse">{type === "Transfer" || type === "Stock Out" ? "From warehouse" : "Warehouse"}</label>
                 <div className="new-request-select-wrap">
-                  <select id="request-from-warehouse" value={fromCode} onChange={(event) => setFromCode(event.target.value)}>
+                  <SearchSelect id="request-from-warehouse" value={fromCode} onChange={(event) => setFromCode(event.target.value)}>
                     {warehouses.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
-                  </select>
+                  </SearchSelect>
                   <CaretDownOutlined />
                 </div>
               </div>
@@ -189,9 +190,9 @@ export default function NewRequestPage() {
                 <div>
                   <label htmlFor="request-to-warehouse">To warehouse</label>
                   <div className="new-request-select-wrap">
-                    <select id="request-to-warehouse" value={toCode} onChange={(event) => setToCode(event.target.value)}>
+                    <SearchSelect id="request-to-warehouse" value={toCode} onChange={(event) => setToCode(event.target.value)}>
                       {warehouses.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
-                    </select>
+                    </SearchSelect>
                     <CaretDownOutlined />
                   </div>
                 </div>
@@ -206,7 +207,7 @@ export default function NewRequestPage() {
             {people.length > 0 && (
               <div className="new-request-notes-field">
                 <label>Approval chain (optional — leave empty to let the system choose)</label>
-                <div style={{ display: "grid", gap: 8 }}>
+                <div className="new-request-chain" style={{ display: "grid", gap: 8 }}>
                   {chain.map((step, i) => (
                     <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <span style={{ width: 22, color: "#6B7280", fontWeight: 600 }}>{i + 1}.</span>
@@ -218,7 +219,7 @@ export default function NewRequestPage() {
                         <option value="CERTIFIER">Certifier</option>
                         <option value="APPROVER">Approver</option>
                       </select>
-                      <select
+                      <SearchSelect
                         value={step.userId}
                         onChange={(e) => setChain((c) => c.map((x, j) => (j === i ? { ...x, userId: e.target.value } : x)))}
                         style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #ECE9F3" }}
@@ -231,7 +232,7 @@ export default function NewRequestPage() {
                               {p.name} ({p.roles.join(", ") || p.staffId})
                             </option>
                           ))}
-                      </select>
+                      </SearchSelect>
                       <button type="button" onClick={() => setChain((c) => c.filter((_, j) => j !== i))} style={{ border: 0, background: "none", cursor: "pointer", color: "#DC2626", fontSize: 18 }} aria-label="Remove step">
                         ×
                       </button>

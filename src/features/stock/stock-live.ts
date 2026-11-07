@@ -11,8 +11,18 @@ export interface LiveWarehouseStock {
   qty: number;
 }
 
+export interface LiveStockVariant {
+  id: string;
+  code: string;
+  name: string;
+  image?: string;
+  onHand: number;
+}
+
 export interface LiveStockProduct {
   id: string;
+  image?: string;
+  variants: LiveStockVariant[];
   code: string;
   name: string;
   sku: string;
@@ -47,6 +57,8 @@ interface ApiProduct {
   costPrice?: number | string | null;
   minimumStock?: number | string | null;
   category?: { name?: string } | null;
+  image?: string | { url?: string } | null;
+  variants?: { id: string; code?: string; name?: string; image?: string | null; stocks?: { quantity: number | string }[] }[];
   stocks?: { quantity: number | string; warehouse?: { name?: string; code?: string } | null }[];
 }
 
@@ -81,8 +93,18 @@ function toProduct(p: ApiProduct): LiveStockProduct {
   const warehouses = Array.from(byWarehouse.values());
   const onHand = warehouses.reduce((sum, w) => sum + w.qty, 0);
   const reorderPoint = Number(p.minimumStock || 0);
+  const image = typeof p.image === "string" ? p.image : p.image?.url;
+  const variants: LiveStockVariant[] = (p.variants ?? []).map((v) => ({
+    id: v.id,
+    code: v.code ?? "",
+    name: v.name ?? "",
+    image: v.image || undefined,
+    onHand: (v.stocks ?? []).reduce((sum, st) => sum + Number(st.quantity || 0), 0),
+  }));
   return {
     id: p.id,
+    image: image || undefined,
+    variants,
     code: p.code,
     name: p.name,
     sku: p.sku ?? "",

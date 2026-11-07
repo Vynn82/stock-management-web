@@ -7,7 +7,8 @@ import { Button, Form, Input, InputNumber, Select, message } from "antd";
 import { ArrowLeftOutlined, CameraOutlined } from "@ant-design/icons";
 import { ApiError } from "@/features/live/http";
 import { LookupOption, fetchBrands, fetchCategories, fetchSuppliers } from "@/features/live/lookups";
-import { ProductDetail, fetchProduct, updateProduct, updateProductImage } from "@/features/products/products-live.api";
+import { ProductDetail, fetchProduct, updateProduct, updateProductImage, updateVariantImage } from "@/features/products/products-live.api";
+import VariantImagePicker from "./VariantImagePicker";
 import { LiveState, errorText } from "@/components/common/live-state";
 import { useStockStore } from "@/store/stockStore";
 import Can from "@/components/common/Can";
@@ -43,6 +44,8 @@ export default function EditProductPage({ productId }: { productId: string }) {
   const [saving, setSaving] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  // New photos picked for variants, by variant code.
+  const [variantPhotos, setVariantPhotos] = useState<Record<string, File>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const { reload: reloadStock } = useStockStore();
 
@@ -95,6 +98,12 @@ export default function EditProductPage({ productId }: { productId: string }) {
   }
 
   async function save(v: FormValues) {
+    // Every variant needs a photo: an existing one or a newly chosen one.
+    const missing = (product?.variants ?? []).filter((x) => !x.image && !variantPhotos[x.code]);
+    if (missing.length > 0) {
+      messageApi.error(`Add a photo for every variant. Missing: ${missing.map((x) => x.name || x.code).join(", ")}`);
+      return;
+    }
     setSaving(true);
     try {
       await updateProduct(productId, {
@@ -119,6 +128,15 @@ export default function EditProductPage({ productId }: { productId: string }) {
           sellingPrice: x.sellingPrice ?? null,
         })),
       });
+      for (const variant of product?.variants ?? []) {
+        const file = variantPhotos[variant.code];
+        if (!file) continue;
+        try {
+          await updateVariantImage(variant.id, file);
+        } catch (e) {
+          messageApi.warning(e instanceof ApiError ? `Saved, but the photo of ${variant.name} failed: ${e.message}` : `Saved, but the photo of ${variant.name} could not be uploaded.`);
+        }
+      }
       if (photo) {
         try {
           await updateProductImage(productId, photo);
@@ -228,6 +246,20 @@ export default function EditProductPage({ productId }: { productId: string }) {
                       <Form.Item name={[f.name, "code"]} hidden>
                         <Input />
                       </Form.Item>
+                      {(() => {
+                        const variant = product?.variants[f.name];
+                        if (!variant) return null;
+                        return (
+                          <div style={{ marginBottom: 12 }}>
+                            <VariantImagePicker
+                              required
+                              currentUrl={variant.image}
+                              file={variantPhotos[variant.code]}
+                              onPick={(file) => setVariantPhotos((cur) => ({ ...cur, [variant.code]: file }))}
+                            />
+                          </div>
+                        );
+                      })()}
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0 16px" }}>
                         <Form.Item name={[f.name, "name"]} label="Name" rules={[{ required: true, message: "Required" }]}>
                           <Input />

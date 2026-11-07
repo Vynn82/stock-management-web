@@ -11,6 +11,7 @@ import {
   useLiveStock,
 } from "@/features/stock/stock-live";
 import Can from "@/components/common/Can";
+import SearchSelect from "@/components/ui/SearchSelect";
 
 export type WarehouseStock = LiveWarehouseStock;
 export type StockProduct = LiveStockProduct;
@@ -28,6 +29,8 @@ export default function StockPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [searchQuery, setSearchQuery] = useState("");
+  // Which variant's photo / quantity a product row shows (product id -> variant id; empty = whole product).
+  const [variantPick, setVariantPick] = useState<Record<string, string>>({});
   const [selectedWarehouse, setSelectedWarehouse] = useState("All Warehouses");
   const [selectedStatus, setSelectedStatus] = useState("All Status");
 
@@ -469,7 +472,7 @@ export default function StockPage() {
         </div>
 
         {/* Warehouse Dropdown */}
-        <select
+        <SearchSelect
           className="stock-filter-select"
           value={selectedWarehouse}
           onChange={(e) => setSelectedWarehouse(e.target.value)}
@@ -480,7 +483,7 @@ export default function StockPage() {
               {wh}
             </option>
           ))}
-        </select>
+        </SearchSelect>
 
         {/* Status Dropdown */}
         <select
@@ -528,14 +531,23 @@ export default function StockPage() {
                   <td>
                     <div className="stock-prod-cell">
                       <div className="stock-prod-thumb">
-                        {/* 3D Isometric Cardboard Box Icon */}
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                          <path d="M12 2.5L3.5 7.2L12 12L20.5 7.2L12 2.5Z" fill="#E2A669" />
-                          <path d="M3.5 7.2L12 12V21.5L3.5 16.7V7.2Z" fill="#C68244" />
-                          <path d="M20.5 7.2L12 12V21.5L20.5 16.7V7.2Z" fill="#B36E32" />
-                          <path d="M10 3.6L14 5.8V11.2L10 9V3.6Z" fill="#F8DFB5" opacity="0.85" />
-                          <path d="M10 9L14 11.2V20.5L10 18.3V9Z" fill="#E8C795" opacity="0.85" />
-                        </svg>
+                        {(() => {
+                          const picked = item.variants.find((v) => v.id === variantPick[item.id]);
+                          const photo = picked?.image ?? item.image ?? item.variants.find((v) => v.image)?.image;
+                          if (photo) {
+                            // eslint-disable-next-line @next/next/no-img-element
+                            return <img className="stock-prod-photo" src={photo} alt={picked?.name ?? item.name} />;
+                          }
+                          return (
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                              <path d="M12 2.5L3.5 7.2L12 12L20.5 7.2L12 2.5Z" fill="#E2A669" />
+                              <path d="M3.5 7.2L12 12V21.5L3.5 16.7V7.2Z" fill="#C68244" />
+                              <path d="M20.5 7.2L12 12V21.5L20.5 16.7V7.2Z" fill="#B36E32" />
+                              <path d="M10 3.6L14 5.8V11.2L10 9V3.6Z" fill="#F8DFB5" opacity="0.85" />
+                              <path d="M10 9L14 11.2V20.5L10 18.3V9Z" fill="#E8C795" opacity="0.85" />
+                            </svg>
+                          );
+                        })()}
                       </div>
                       <div className="stock-prod-info">
                         <Link
@@ -547,6 +559,21 @@ export default function StockPage() {
                           </span>
                         </Link>
                         <span className="stock-prod-sku">SKU: {item.sku}</span>
+                        {item.variants.length > 0 && (
+                          <SearchSelect
+                            className="stock-variant-select"
+                            aria-label={`Variant of ${item.name}`}
+                            value={variantPick[item.id] ?? ""}
+                            onChange={(e) => setVariantPick((cur) => ({ ...cur, [item.id]: e.target.value }))}
+                          >
+                            <option value="">All variants ({item.variants.length})</option>
+                            {item.variants.map((v) => (
+                              <option key={v.id} value={v.id}>
+                                {v.name || v.code}
+                              </option>
+                            ))}
+                          </SearchSelect>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -563,7 +590,9 @@ export default function StockPage() {
 
                   {/* On Hand Column */}
                   <td>
-                    <span className="stock-num-cell">{item.onHand}</span>
+                    <span className="stock-num-cell">
+                      {item.variants.find((v) => v.id === variantPick[item.id])?.onHand ?? item.onHand}
+                    </span>
                   </td>
 
                   {/* Status Column */}
@@ -632,7 +661,7 @@ export default function StockPage() {
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
               Product
             </label>
-            <select
+            <SearchSelect
               style={{
                 width: "100%",
                 height: 38,
@@ -648,14 +677,14 @@ export default function StockPage() {
                   {p.name} ({p.sku})
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
 
           <div>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
               Destination Warehouse
             </label>
-            <select
+            <SearchSelect
               style={{
                 width: "100%",
                 height: 38,
@@ -671,7 +700,7 @@ export default function StockPage() {
                   {w}
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
 
           <div>
@@ -746,7 +775,7 @@ export default function StockPage() {
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
               Product
             </label>
-            <select
+            <SearchSelect
               style={{
                 width: "100%",
                 height: 38,
@@ -762,14 +791,14 @@ export default function StockPage() {
                   {p.name} ({p.sku}) — {p.onHand} on hand
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
 
           <div>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
               Source Warehouse
             </label>
-            <select
+            <SearchSelect
               style={{
                 width: "100%",
                 height: 38,
@@ -789,7 +818,7 @@ export default function StockPage() {
                   </option>
                 );
               })}
-            </select>
+            </SearchSelect>
           </div>
 
           <div>
@@ -864,7 +893,7 @@ export default function StockPage() {
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
               Product
             </label>
-            <select
+            <SearchSelect
               style={{
                 width: "100%",
                 height: 38,
@@ -880,7 +909,7 @@ export default function StockPage() {
                   {p.name} ({p.sku})
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -1007,7 +1036,7 @@ export default function StockPage() {
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
               Product
             </label>
-            <select
+            <SearchSelect
               style={{
                 width: "100%",
                 height: 38,
@@ -1030,14 +1059,14 @@ export default function StockPage() {
                   {p.name} ({p.sku})
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
 
           <div>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
               Warehouse
             </label>
-            <select
+            <SearchSelect
               style={{
                 width: "100%",
                 height: 38,
@@ -1059,7 +1088,7 @@ export default function StockPage() {
                   {w}
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
 
           <div

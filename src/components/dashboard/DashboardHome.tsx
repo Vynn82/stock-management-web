@@ -91,12 +91,12 @@ export default function DashboardHome() {
   const name = user?.firstName || user?.name?.split(" ")[0] || "";
 
   return (
-    <div className="page-content">
-      <div className="page-heading">
+    <div className="page-content dashboard-home">
+      <div className="page-heading dashboard-heading">
         <h1>Dashboard</h1>
         <p>{name ? `Welcome back, ${name}. ` : "Welcome back. "}Here&apos;s what&apos;s happening today.</p>
-        {error && <p role="alert" style={{ color: "#dc2626" }}>{error}</p>}
       </div>
+      {error && <p role="alert" style={{ color: "#dc2626", margin: "0 0 12px" }}>{error}</p>}
       <div className="stats-grid">
         {stats.map((stat) => (
           <Link href="#" className="stat-card dashboard-card" key={stat.label}>

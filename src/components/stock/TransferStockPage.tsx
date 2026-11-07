@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { message } from "antd";
 import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
+import SearchSelect from "@/components/ui/SearchSelect";
 
 interface TransferStockPageProps {
   productId?: string;
@@ -172,7 +173,7 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
                 <span className="stock-select-product-name">{product.name}</span>
               </div>
 
-              <select
+              <SearchSelect
                 id="product-select"
                 className="stock-select-overlay"
                 value={selectedProductId}
@@ -195,7 +196,7 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
                     {item.name} ({item.sku})
                   </option>
                 ))}
-              </select>
+              </SearchSelect>
 
               <svg
                 className="stock-select-chevron"
@@ -241,7 +242,7 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
               <div className="stock-route-col">
                 <span className="stock-route-sublabel">FROM WAREHOUSE</span>
                 <div className="stock-warehouse-select-wrap">
-                  <select
+                  <SearchSelect
                     className="stock-warehouse-select"
                     value={sourceWarehouse}
                     onChange={(e) => {
@@ -259,7 +260,7 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
                         {w}
                       </option>
                     ))}
-                  </select>
+                  </SearchSelect>
                   <svg
                     className="stock-select-chevron"
                     width="12"
@@ -297,7 +298,7 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
               <div className="stock-route-col">
                 <span className="stock-route-sublabel">TO WAREHOUSE</span>
                 <div className="stock-warehouse-select-wrap">
-                  <select
+                  <SearchSelect
                     className="stock-warehouse-select"
                     value={targetWarehouse}
                     onChange={(e) => setTargetWarehouse(e.target.value)}
@@ -307,7 +308,7 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
                         {w}
                       </option>
                     ))}
-                  </select>
+                  </SearchSelect>
                   <svg
                     className="stock-select-chevron"
                     width="12"

@@ -23,6 +23,7 @@ import {
 import { formatCurrency } from "./purchasing-data";
 import RejectPOModal from "./RejectPOModal";
 import Can from "@/components/common/Can";
+import SearchSelect from "@/components/ui/SearchSelect";
 
 interface PODetailPageProps {
   poId: string;
@@ -287,11 +288,11 @@ export default function PODetailPage({ poId }: PODetailPageProps) {
                 {approvers.length > 0 && (
                   <label style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--muted)" }}>
                     Send for approval to
-                    <select className="po-new-select" value={approverId} onChange={(e) => setApproverId(e.target.value)}>
+                    <SearchSelect className="po-new-select" value={approverId} onChange={(e) => setApproverId(e.target.value)}>
                       {approvers.map((a) => (
                         <option key={a.id} value={a.id}>{a.name}</option>
                       ))}
-                    </select>
+                    </SearchSelect>
                   </label>
                 )}
                 <button type="button" className="po-btn-reject" disabled={busy} onClick={() => router.push(`/purchasing/${order.id}/edit`)}>

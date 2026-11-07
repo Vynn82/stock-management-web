@@ -11,6 +11,7 @@ import {
 import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
 import Can from "@/components/common/Can";
+import SearchSelect from "@/components/ui/SearchSelect";
 
 interface StockDetailPageProps {
   productId?: string;
@@ -604,7 +605,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
                 From Warehouse
               </label>
-              <select
+              <SearchSelect
                 className="stock-modal-select"
                 value={sourceWarehouse}
                 onChange={(e) => setSourceWarehouse(e.target.value)}
@@ -614,14 +615,14 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
                     {w.warehouse} ({w.onHand})
                   </option>
                 ))}
-              </select>
+              </SearchSelect>
             </div>
 
             <div>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
                 To Warehouse
               </label>
-              <select
+              <SearchSelect
                 className="stock-modal-select"
                 value={targetWarehouse}
                 onChange={(e) => setTargetWarehouse(e.target.value)}
@@ -633,7 +634,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
                       {w}
                     </option>
                   ))}
-              </select>
+              </SearchSelect>
             </div>
           </div>
 
@@ -697,7 +698,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
               Warehouse to Adjust
             </label>
-            <select
+            <SearchSelect
               className="stock-modal-select"
               value={sourceWarehouse}
               onChange={(e) => {
@@ -713,7 +714,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
                   {w.warehouse} ({w.onHand} units recorded)
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
 
           <div
@@ -812,7 +813,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
               Source Warehouse
             </label>
-            <select
+            <SearchSelect
               className="stock-modal-select"
               value={sourceWarehouse}
               onChange={(e) => setSourceWarehouse(e.target.value)}
@@ -822,7 +823,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
                   {w.warehouse} ({w.onHand} units available)
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
 
           <div>

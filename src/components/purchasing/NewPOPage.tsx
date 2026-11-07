@@ -25,6 +25,7 @@ import {
 import { formatCurrency } from "./purchasing-data";
 import { ImportModal, ReorderModal, SupplierCompareModal } from "./PoTools";
 import type { ImportRow, ReorderItem, SupplierOption } from "@/features/purchasing/purchasing-live";
+import SearchSelect from "@/components/ui/SearchSelect";
 
 interface DraftLine {
   key: string;
@@ -325,7 +326,7 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
                 <div className="po-new-field">
                   <label htmlFor="po-supplier-select">Supplier</label>
                   <div className="po-new-select-wrap">
-                    <select
+                    <SearchSelect
                       id="po-supplier-select"
                       value={supplierCode}
                       onChange={(e) => setSupplierCode(e.target.value)}
@@ -336,7 +337,7 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
                           {sup.name}
                         </option>
                       ))}
-                    </select>
+                    </SearchSelect>
                     <DownOutlined className="po-new-select-chevron" />
                   </div>
                 </div>
@@ -345,7 +346,7 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
                 <div className="po-new-field">
                   <label htmlFor="po-warehouse-select">Deliver to warehouse</label>
                   <div className="po-new-select-wrap">
-                    <select
+                    <SearchSelect
                       id="po-warehouse-select"
                       value={warehouseCode}
                       onChange={(e) => setWarehouseCode(e.target.value)}
@@ -356,7 +357,7 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
                           {w.name}
                         </option>
                       ))}
-                    </select>
+                    </SearchSelect>
                     <HomeOutlined className="po-new-select-chevron" />
                   </div>
                 </div>
@@ -365,7 +366,7 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
                   <div className="po-new-field">
                     <label htmlFor="po-approver-select">Send for approval to</label>
                     <div className="po-new-select-wrap">
-                      <select
+                      <SearchSelect
                         id="po-approver-select"
                         value={approverId}
                         onChange={(e) => setApproverId(e.target.value)}
@@ -376,7 +377,7 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
                             {a.name}
                           </option>
                         ))}
-                      </select>
+                      </SearchSelect>
                       <DownOutlined className="po-new-select-chevron" />
                     </div>
                   </div>
@@ -437,7 +438,7 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
                     {isAddingItem && (
                       <tr className="po-new-inline-add-row">
                         <td>
-                          <select
+                          <SearchSelect
                             value={newKey}
                             onChange={(e) => handlePickProduct(e.target.value)}
                             className="po-inline-input"
@@ -449,7 +450,7 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
                                 {p.label}
                               </option>
                             ))}
-                          </select>
+                          </SearchSelect>
                         </td>
                         <td>
                           <input

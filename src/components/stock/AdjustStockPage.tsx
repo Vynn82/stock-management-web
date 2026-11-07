@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { message } from "antd";
 import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
+import SearchSelect from "@/components/ui/SearchSelect";
 
 interface AdjustStockPageProps {
   productId?: string;
@@ -180,7 +181,7 @@ function AdjustStockPageInner({ productId = "1" }: AdjustStockPageProps) {
                   <span className="stock-select-product-name">{product.name}</span>
                 </div>
 
-                <select
+                <SearchSelect
                   id="adjust-product-select"
                   className="stock-select-overlay"
                   value={selectedProductId}
@@ -197,7 +198,7 @@ function AdjustStockPageInner({ productId = "1" }: AdjustStockPageProps) {
                       {item.name} ({item.sku})
                     </option>
                   ))}
-                </select>
+                </SearchSelect>
 
                 <svg
                   className="stock-select-chevron"
@@ -221,7 +222,7 @@ function AdjustStockPageInner({ productId = "1" }: AdjustStockPageProps) {
                 Warehouse
               </label>
               <div className="stock-input-select-wrap">
-                <select
+                <SearchSelect
                   id="adjust-warehouse-select"
                   className="stock-native-select"
                   value={selectedWarehouse}
@@ -232,7 +233,7 @@ function AdjustStockPageInner({ productId = "1" }: AdjustStockPageProps) {
                       {w}
                     </option>
                   ))}
-                </select>
+                </SearchSelect>
                 <svg
                   className="stock-select-chevron"
                   width="14"

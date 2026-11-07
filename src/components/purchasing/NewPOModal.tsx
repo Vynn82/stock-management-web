@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { CloseOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { POStatus, PurchaseOrder } from "./purchasing-data";
+import SearchSelect from "@/components/ui/SearchSelect";
 
 interface NewPOModalProps {
   isOpen: boolean;
@@ -175,7 +176,7 @@ export default function NewPOModal({
             </div>
             <div className="po-form-field">
               <label htmlFor="po-supplier">Supplier</label>
-              <select
+              <SearchSelect
                 id="po-supplier"
                 value={supplier}
                 onChange={(e) => setSupplier(e.target.value)}
@@ -185,7 +186,7 @@ export default function NewPOModal({
                     {sup}
                   </option>
                 ))}
-              </select>
+              </SearchSelect>
             </div>
           </div>
 

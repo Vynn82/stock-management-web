@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { checkAccess } from "@/lib/auth/route-access";
 import AccessDenied from "@/components/common/AccessDenied";
 import { usePendingOrders } from "@/features/customer-orders/use-pending-orders";
+import { usePendingRequests } from "@/features/requests/use-pending-requests";
 import QuickThemeToggle from "@/components/dashboard/QuickThemeToggle";
 import { useTheme } from "@/providers/ThemeProvider";
 
@@ -42,7 +43,6 @@ const primary = [
     label: "Requests",
     href: "/requests",
     icon: <FileTextOutlined />,
-    badge: 7,
   },
   { label: "Reports", href: "/reports", icon: <BarChartOutlined /> },
   { label: "Users", href: "/users", icon: <TeamOutlined /> },
@@ -109,8 +109,14 @@ export default function DashboardShell({
       ),
     });
   });
+  // Requests waiting for this person's decision.
+  const pendingRequests = usePendingRequests(pathname);
   const navPrimary = primary.map((item) =>
-    item.href === "/customer-orders" ? { ...item, badge: pendingOrders || undefined } : item,
+    item.href === "/customer-orders"
+      ? { ...item, badge: pendingOrders || undefined }
+      : item.href === "/requests"
+        ? { ...item, badge: pendingRequests || undefined }
+        : item,
   );
   const navSecondary = secondary.map((item) =>
     item.href === "/notifications" ? { ...item, badge: pendingOrders || undefined } : item,
@@ -280,7 +286,7 @@ export default function DashboardShell({
                     inputReadOnly
                     aria-label="Select date range"
                   />
-                  <div className="avatar">VK</div>
+                  <button type="button" className="avatar avatar-button" aria-label="Open my profile" title="My profile" onClick={() => router.push("/settings/profile")}>VK</button>
                 </div>
               )}
             </header>
@@ -377,7 +383,7 @@ function NavItem({
     <Link className={`nav-item ${active ? "active" : ""}`} href={href}>
       {icon}
       <span>{label}</span>
-      {badge && <span className="nav-badge">{badge}</span>}
+      {badge ? <span className="nav-badge">{badge > 99 ? "99+" : badge}</span> : null}
     </Link>
   );
 }

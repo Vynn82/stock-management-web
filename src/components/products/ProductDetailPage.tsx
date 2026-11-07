@@ -203,7 +203,21 @@ export default function ProductDetailPage({ productId }: { productId: string }) 
                       pagination={false}
                       dataSource={p.variants}
                       columns={[
-                        { title: "VARIANT", dataIndex: "name", render: (v: string, r) => (<div><strong>{v}</strong><div style={{ color: "var(--muted)", fontSize: 12 }}>{r.sku}{r.attributes ? ` · ${r.attributes}` : ""}</div></div>) },
+                        {
+                          title: "VARIANT",
+                          dataIndex: "name",
+                          render: (v: string, r) => (
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              {r.image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img className="variant-thumb" src={r.image} alt={v} />
+                              ) : (
+                                <span className="variant-thumb" style={{ display: "grid", placeItems: "center", color: "#a78bfa" }} aria-hidden="true">◆</span>
+                              )}
+                              <div><strong>{v}</strong><div style={{ color: "var(--muted)", fontSize: 12 }}>{r.sku}{r.attributes ? ` · ${r.attributes}` : ""}</div></div>
+                            </div>
+                          ),
+                        },
                         { title: "COST", dataIndex: "costPrice", align: "right", render: (v: number | null) => price(v) },
                         { title: "PRICE", dataIndex: "sellingPrice", align: "right", render: (v: number | null) => price(v) },
                         { title: "STOCK", dataIndex: "quantity", align: "right" },

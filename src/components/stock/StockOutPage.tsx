@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { message } from "antd";
 import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
+import SearchSelect from "@/components/ui/SearchSelect";
 
 interface StockOutPageProps {
   productId?: string;
@@ -162,7 +163,7 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
                 <span className="stock-select-product-name">{product.name}</span>
               </div>
 
-              <select
+              <SearchSelect
                 id="stockout-product-select"
                 className="stock-select-overlay"
                 value={selectedProductId}
@@ -179,7 +180,7 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
                     {item.name} ({item.sku})
                   </option>
                 ))}
-              </select>
+              </SearchSelect>
 
               <svg
                 className="stock-select-chevron"
@@ -205,7 +206,7 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
                 Warehouse
               </label>
               <div className="stock-input-select-wrap">
-                <select
+                <SearchSelect
                   id="stockout-warehouse-select"
                   className="stock-native-select"
                   value={selectedWarehouse}
@@ -216,7 +217,7 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
                       {w}
                     </option>
                   ))}
-                </select>
+                </SearchSelect>
                 <svg
                   className="stock-select-chevron"
                   width="14"

@@ -7,6 +7,8 @@ import { message } from "antd";
 import { ApiError } from "@/features/live/http";
 import { LookupOption, fetchBrands, fetchCategories, fetchSuppliers, fetchWarehouses } from "@/features/live/lookups";
 import { createProduct, NewVariantInput } from "@/features/products/products-live.api";
+import VariantImagePicker from "./VariantImagePicker";
+import SearchSelect from "@/components/ui/SearchSelect";
 
 interface AddProductPageProps {
   onCancel?: () => void;
@@ -28,10 +30,11 @@ interface VariantDraft {
   warehouseCode: string;
   quantity: string;
   location: string;
+  image: File | null;
 }
 
 let variantKey = 0;
-const newVariant = (): VariantDraft => ({ key: ++variantKey, name: "", sku: "", barcode: "", cost: "", sell: "", warehouseCode: "", quantity: "", location: "" });
+const newVariant = (): VariantDraft => ({ key: ++variantKey, name: "", sku: "", barcode: "", cost: "", sell: "", warehouseCode: "", quantity: "", location: "", image: null });
 
 export default function AddProductPage({ onCancel, onSuccess }: AddProductPageProps) {
   const router = useRouter();
@@ -145,7 +148,8 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
         if (!r.warehouseCode) return void messageApi.error(`Variant ${i + 1}: choose a warehouse.`);
         const q = num(r.quantity);
         if (!q || q < 1) return void messageApi.error(`Variant ${i + 1}: enter a quantity of at least 1.`);
-        variantInputs.push({ name: r.name, sku: r.sku, barcode: r.barcode, costPrice: num(r.cost), sellingPrice: num(r.sell), warehouseCode: r.warehouseCode, quantity: q, location: r.location });
+        if (!r.image) return void messageApi.error(`Variant ${i + 1}: add a photo.`);
+        variantInputs.push({ image: r.image, name: r.name, sku: r.sku, barcode: r.barcode, costPrice: num(r.cost), sellingPrice: num(r.sell), warehouseCode: r.warehouseCode, quantity: q, location: r.location });
       }
       qty = 1;
     } else {
@@ -248,14 +252,14 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                   Category *
                 </label>
                 <div className="select-container">
-                  <select id="product-category" className="form-select" value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)}>
+                  <SearchSelect id="product-category" className="form-select" value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)}>
                     <option value="">Select a category</option>
                     {categories.map((o) => (
                       <option key={o.code} value={o.code}>
                         {o.name}
                       </option>
                     ))}
-                  </select>
+                  </SearchSelect>
                   <svg className="select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -269,14 +273,14 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                   Brand
                 </label>
                 <div className="select-container">
-                  <select id="product-brand" className="form-select" value={brandCode} onChange={(e) => setBrandCode(e.target.value)}>
+                  <SearchSelect id="product-brand" className="form-select" value={brandCode} onChange={(e) => setBrandCode(e.target.value)}>
                     <option value="">No brand</option>
                     {brands.map((o) => (
                       <option key={o.code} value={o.code}>
                         {o.name}
                       </option>
                     ))}
-                  </select>
+                  </SearchSelect>
                   <svg className="select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -287,14 +291,14 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                   Supplier
                 </label>
                 <div className="select-container">
-                  <select id="product-supplier" className="form-select" value={supplierCode} onChange={(e) => setSupplierCode(e.target.value)}>
+                  <SearchSelect id="product-supplier" className="form-select" value={supplierCode} onChange={(e) => setSupplierCode(e.target.value)}>
                     <option value="">No supplier</option>
                     {suppliers.map((o) => (
                       <option key={o.code} value={o.code}>
                         {o.name}
                       </option>
                     ))}
-                  </select>
+                  </SearchSelect>
                   <svg className="select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -369,14 +373,14 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                   Initial warehouse *
                 </label>
                 <div className="select-container">
-                  <select id="initial-warehouse" className="form-select" value={warehouseCode} onChange={(e) => setWarehouseCode(e.target.value)}>
+                  <SearchSelect id="initial-warehouse" className="form-select" value={warehouseCode} onChange={(e) => setWarehouseCode(e.target.value)}>
                     <option value="">Select a warehouse</option>
                     {warehouses.map((o) => (
                       <option key={o.code} value={o.code}>
                         {o.name}
                       </option>
                     ))}
-                  </select>
+                  </SearchSelect>
                   <svg className="select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -411,6 +415,12 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                       </button>
                     )}
                   </div>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 12 }}>
+                    <VariantImagePicker required file={r.image} onPick={(f) => patchVariant(r.key, { image: f })} />
+                    <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280", lineHeight: 1.5 }}>
+                      Photo of this variant (required) — shown on the product page, stock list and mobile app.
+                    </p>
+                  </div>
                   <div className="form-row-three-cols">
                     <div className="form-group">
                       <label className="form-label">Name *</label>
@@ -443,12 +453,12 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                     <div className="form-group">
                       <label className="form-label">Warehouse *</label>
                       <div className="select-container">
-                      <select className="form-select" value={r.warehouseCode} onChange={(e) => patchVariant(r.key, { warehouseCode: e.target.value })}>
+                      <SearchSelect className="form-select" value={r.warehouseCode} onChange={(e) => patchVariant(r.key, { warehouseCode: e.target.value })}>
                         <option value="">Select a warehouse</option>
                         {warehouses.map((o) => (
                           <option key={o.code} value={o.code}>{o.name}</option>
                         ))}
-                      </select>
+                      </SearchSelect>
                     </div>
                     </div>
                     <div className="form-group">
