@@ -1,12 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { Alert, Button, Image, Input, InputNumber, Modal, Skeleton, Table, Upload, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { UploadFile } from "antd/es/upload/interface";
 import {
-  ArrowLeftOutlined,
   CheckOutlined,
   CloseOutlined,
   EnvironmentOutlined,
@@ -26,6 +24,7 @@ import { CoItem, CoStatus, CustomerOrderDetail } from "@/features/customer-order
 import { Card, PaidPill, StatusPill, dateTime, money, mutedText, pageTitle, pageWrap, qty } from "./co-ui";
 
 import { markSeen } from "@/features/seen/seen-store";
+import BackButton from "@/components/ui/BackButton";
 const MAX_PROOF_BYTES = 5 * 1024 * 1024;
 const PROOF_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -150,9 +149,7 @@ export default function CustomerOrderDetailPage({ orderId }: { orderId: string }
   if (!order) {
     return (
       <div style={pageWrap}>
-        <Link href="/customer-orders" style={{ color: "var(--purple)" }}>
-          <ArrowLeftOutlined /> Back to customer orders
-        </Link>
+        <BackButton href="/customer-orders" />
         <Alert style={{ marginTop: 16 }} type="error" showIcon message={error ?? "Order not found."} action={<Button size="small" onClick={load}>Retry</Button>} />
       </div>
     );
@@ -200,10 +197,8 @@ export default function CustomerOrderDetailPage({ orderId }: { orderId: string }
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
         <div>
-          <Link href="/customer-orders" style={{ fontSize: 13, color: "var(--muted)" }}>
-            <ArrowLeftOutlined /> Customer orders
-          </Link>
-          <h1 style={{ ...pageTitle, marginTop: 6 }}>
+          <BackButton href="/customer-orders" />
+          <h1 style={pageTitle}>
             {order.orderNo} · {order.customer.title}
           </h1>
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>

@@ -48,7 +48,7 @@ export default function ReceiveGoodsPage({ poId }: ReceiveGoodsPageProps) {
 
   const breadcrumb = (
     <>
-    <BackButton href={`/purchasing/${poId}`} label="Back to purchase order" />
+    <BackButton href={`/purchasing/${poId}`} />
     <nav className="po-detail-breadcrumb" aria-label="Breadcrumb">
       <Link href="/purchasing" className="po-detail-breadcrumb-link">
         Purchase Orders
@@ -78,9 +78,7 @@ export default function ReceiveGoodsPage({ poId }: ReceiveGoodsPageProps) {
         <div className="po-not-found-card">
           <h2>Purchase Order Not Found</h2>
           <p>This purchase order could not be found.</p>
-          <Link href="/purchasing" className="po-back-btn">
-            Back to Purchase Orders
-          </Link>
+          <BackButton href="/purchasing" />
         </div>
       </div>
     );
@@ -102,9 +100,7 @@ export default function ReceiveGoodsPage({ poId }: ReceiveGoodsPageProps) {
         <div className="po-not-found-card">
           <h2>Not ready to receive</h2>
           <p>Goods can only be received on an approved order. This one is {order.status.toLowerCase().replaceAll("_", " ")}.</p>
-          <Link href={`/purchasing/${order.id}`} className="po-back-btn">
-            Back to {order.poNumber}
-          </Link>
+          <BackButton href={`/purchasing/${order.id}`} />
         </div>
       </div>
     );

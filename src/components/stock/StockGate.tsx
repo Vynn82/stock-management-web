@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useStockStore } from "@/store/stockStore";
+import BackButton from "@/components/ui/BackButton";
 
 /**
  * Shows the stock pages only once the stock has loaded from the server, with a
@@ -34,7 +35,7 @@ export default function StockGate({ productId, children }: { productId?: string;
   }
   // Route ids are UUIDs; the generic pages pass placeholder ids like "1" and use the first product.
   if (productId && !/^\d+$/.test(productId) && !getItem(productId)) {
-    return box("This product was not found.", <Link href="/stock">Back to stock</Link>);
+    return box("This product was not found.", <BackButton href="/stock" />);
   }
   return <>{children}</>;
 }

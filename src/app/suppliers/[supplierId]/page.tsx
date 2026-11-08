@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import SupplierDetailsPage from "@/components/suppliers/SupplierDetailsPage";
 import { errorText } from "@/components/common/live-state";
 import { fetchSupplierOrders, suppliersApi, type SupplierOrder, type SupplierRow } from "@/features/live/master-data";
+import BackButton from "@/components/ui/BackButton";
 
 export default function SupplierDetailsRoute() {
   const { supplierId } = useParams<{ supplierId: string }>();
@@ -45,7 +45,7 @@ export default function SupplierDetailsRoute() {
   if (notFound || !supplier) return (
     <div className="supplier-detail-message">
       <p>Supplier not found.</p>
-      <Link href="/manage/suppliers">Back to suppliers</Link>
+      <BackButton href="/manage/suppliers" />
     </div>
   );
   return <SupplierDetailsPage supplier={supplier} orders={orders} />;

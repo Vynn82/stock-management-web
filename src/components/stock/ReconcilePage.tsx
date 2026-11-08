@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { Alert, Button, Input, InputNumber, Modal, Progress, Select, Switch, Table, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { ArrowLeftOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
+import { ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import {
   CountLine,
@@ -15,6 +14,7 @@ import {
 } from "@/features/stock/reconcile.api";
 import { errorText } from "@/features/customer-orders/customer-orders.api";
 import { Card, Pill, mutedText, pageTitle, pageWrap } from "@/components/customer-orders/co-ui";
+import BackButton from "@/components/ui/BackButton";
 
 export default function ReconcilePage() {
   const [msg, msgHolder] = message.useMessage();
@@ -193,10 +193,8 @@ export default function ReconcilePage() {
       {modalHolder}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
         <div>
-          <Link href="/stock" style={{ fontSize: 13, color: "var(--muted)" }}>
-            <ArrowLeftOutlined /> Stock
-          </Link>
-          <h1 style={{ ...pageTitle, marginTop: 6 }}>Reconcile stock</h1>
+          <BackButton href="/stock" />
+          <h1 style={pageTitle}>Reconcile stock</h1>
           <p style={{ ...mutedText, margin: "4px 0 0" }}>Compare what is counted on the shelf with what the system says.</p>
         </div>
       </div>

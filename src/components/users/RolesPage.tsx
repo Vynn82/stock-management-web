@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Button, Checkbox, Tag, message } from "antd";
-import { ArrowLeftOutlined, LockOutlined } from "@ant-design/icons";
+import { Checkbox, Tag, message } from "antd";
+import { LockOutlined } from "@ant-design/icons";
 import { ApiError } from "@/features/live/http";
 import { LiveState, errorText } from "@/components/common/live-state";
 import { usePermission } from "@/hooks/use-permission";
@@ -16,11 +15,11 @@ import {
   grantPermission,
   revokePermission,
 } from "@/features/roles/roles-live";
+import BackButton from "@/components/ui/BackButton";
 
 const pretty = (s: string) => s.replace(/[_-]+/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 
 export default function RolesPage() {
-  const router = useRouter();
   const { can } = usePermission();
   const canEdit = can("ROLE_UPDATE");
   const [messageApi, holder] = message.useMessage();
@@ -85,8 +84,8 @@ export default function RolesPage() {
   return (
     <div className="page-content data-page">
       {holder}
+      <BackButton href="/users" />
       <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5 }}>
-        <Button shape="circle" icon={<ArrowLeftOutlined />} aria-label="Back to users" onClick={() => router.push("/users")} />
         <Link href="/users" style={{ color: "var(--muted)", fontWeight: 600, textDecoration: "none" }}>Users</Link>
         <span aria-hidden="true" style={{ color: "var(--muted)", opacity: 0.6 }}>/</span>
         <span style={{ fontWeight: 700 }}>Roles &amp; permissions</span>

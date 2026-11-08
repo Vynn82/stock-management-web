@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckOutlined, CloseOutlined, ShopOutlined, CheckCircleOutlined, ArrowLeftOutlined, InboxOutlined } from "@ant-design/icons";
+import { CheckOutlined, CloseOutlined, ShopOutlined, CheckCircleOutlined, InboxOutlined } from "@ant-design/icons";
 import { LiveState, errorText } from "@/components/common/live-state";
 import { suppliersApi, type SupplierRow } from "@/features/live/master-data";
 import {
@@ -24,6 +24,7 @@ import { formatCurrency } from "./purchasing-data";
 import RejectPOModal from "./RejectPOModal";
 import Can from "@/components/common/Can";
 import SearchSelect from "@/components/ui/SearchSelect";
+import BackButton from "@/components/ui/BackButton";
 
 interface PODetailPageProps {
   poId: string;
@@ -165,9 +166,7 @@ export default function PODetailPage({ poId }: PODetailPageProps) {
         <div className="po-not-found-card">
           <h2>Purchase Order Not Found</h2>
           <p>This purchase order could not be found.</p>
-          <Link href="/purchasing" className="po-back-btn">
-            <ArrowLeftOutlined /> Back to Purchase Orders
-          </Link>
+          <BackButton href="/purchasing" />
         </div>
       </div>
     );

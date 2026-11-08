@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Form, Input, InputNumber, Select, message } from "antd";
 import type { Rule } from "antd/es/form";
-import { ArrowLeftOutlined, CameraOutlined } from "@ant-design/icons";
+import { CameraOutlined } from "@ant-design/icons";
 import { ApiError } from "@/features/live/http";
 import { LookupOption, fetchBrands, fetchCategories, fetchSuppliers } from "@/features/live/lookups";
 import { ProductDetail, fetchProduct, updateProduct, updateProductImage, updateVariantImage } from "@/features/products/products-live.api";
@@ -13,6 +13,7 @@ import VariantImagePicker from "./VariantImagePicker";
 import { LiveState, errorText } from "@/components/common/live-state";
 import { useStockStore } from "@/store/stockStore";
 import Can from "@/components/common/Can";
+import BackButton from "@/components/ui/BackButton";
 
 interface FormValues {
   name: string;
@@ -178,8 +179,8 @@ export default function EditProductPage({ productId }: { productId: string }) {
   return (
     <div className="page-content data-page">
       {holder}
+      <BackButton href={`/products/${productId}`} />
       <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5 }}>
-        <Button shape="circle" icon={<ArrowLeftOutlined />} aria-label="Back to product" onClick={() => router.push(`/products/${productId}`)} />
         <Link href="/products" style={{ color: "var(--muted)", fontWeight: 600, textDecoration: "none" }}>Products</Link>
         <span aria-hidden="true" style={{ color: "var(--muted)", opacity: 0.6 }}>/</span>
         <span style={{ fontWeight: 700 }}>Edit {product?.name ?? "product"}</span>

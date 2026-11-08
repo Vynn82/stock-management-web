@@ -12,6 +12,7 @@ import {
   CalendarOutlined,
   BellOutlined,
   CarOutlined,
+  ContactsOutlined,
   CaretDownOutlined,
   DatabaseOutlined,
   FileTextOutlined,
@@ -38,6 +39,7 @@ const primary = [
   { label: "Stock", href: "/stock", icon: <HomeOutlined /> },
   { label: "Purchasing", href: "/purchasing", icon: <ShopOutlined /> },
   { label: "Customer Orders", href: "/customer-orders", icon: <CarOutlined /> },
+  { label: "Customers", href: "/customers", icon: <ContactsOutlined /> },
   { label: "Manage", href: "/manage/categories", icon: <DatabaseOutlined /> },
   {
     label: "Requests",

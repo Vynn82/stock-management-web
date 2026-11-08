@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Modal, Table } from "antd";
-import { ArrowLeftOutlined, EditOutlined, HistoryOutlined, PlusOutlined, QrcodeOutlined } from "@ant-design/icons";
+import { EditOutlined, HistoryOutlined, PlusOutlined, QrcodeOutlined } from "@ant-design/icons";
 import { QRCodeSVG } from "qrcode.react";
 import { Pill } from "@/components/customer-orders/co-ui";
 import { LiveState, errorText } from "@/components/common/live-state";
 import { usePermission } from "@/hooks/use-permission";
 import { fetchProduct, type ProductDetail, type StockStatus } from "@/features/products/products-live.api";
+import BackButton from "@/components/ui/BackButton";
 
 const TONE = { "In stock": "ok", "Low stock": "warn", "Out of stock": "bad" } as const;
 const price = (n: number | null) => (n == null ? "—" : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
@@ -98,14 +99,8 @@ export default function ProductDetailPage({ productId }: { productId: string }) 
 
   return (
     <div className="page-content data-page">
+      <BackButton href="/products" />
       <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5 }}>
-        <Button
-          shape="circle"
-          size="middle"
-          icon={<ArrowLeftOutlined />}
-          aria-label="Back to products"
-          onClick={() => router.push("/products")}
-        />
         <Link href="/products" style={{ color: "var(--muted)", fontWeight: 600, textDecoration: "none" }}>
           Products
         </Link>

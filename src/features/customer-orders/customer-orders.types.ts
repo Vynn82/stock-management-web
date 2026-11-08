@@ -79,3 +79,28 @@ export interface RecordPaymentInput {
   remark?: string;
   proof?: File | null;
 }
+
+export type CustomerStatusValue = "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED" | "BLOCKED";
+
+/** A registered customer, as listed for staff (profile + order totals). */
+export interface CustomerRow {
+  id: string;
+  title: string;
+  name: string | null;
+  company: string | null;
+  phone: string | null;
+  address: string | null;
+  telegram: string | null;
+  telegramAccounts: string[];
+  status: CustomerStatusValue;
+  rejectionReason: string | null;
+  tierName: string | null;
+  tierColor: string | null;
+  discountPercent: number;
+  orderCount: number;
+  completedOrders: number;
+  totalSpent: number;
+  totalQuantity: number;
+  lastOrderAt: string | null;
+  joinedAt: string | null;
+}

@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import RequestDetailPage from "@/components/requests/RequestDetailPage";
 import { errorText } from "@/components/common/live-state";
 import { fetchRequest, type LiveRequest } from "@/features/requests/requests-live";
 
 import { markSeen } from "@/features/seen/seen-store";
+import BackButton from "@/components/ui/BackButton";
 export default function RequestDetailLoader({ requestId }: { requestId: string }) {
   const [request, setRequest] = useState<LiveRequest | null>(null);
   const [error, setError] = useState("");
@@ -31,7 +31,7 @@ export default function RequestDetailLoader({ requestId }: { requestId: string }
     return (
       <main className="request-detail-message">
         <p>Request not found.</p>
-        <Link href="/requests">Back to requests</Link>
+        <BackButton href="/requests" />
       </main>
     );
   }

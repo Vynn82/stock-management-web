@@ -11678,13 +11678,6 @@ button, input { font-family: inherit; }
 .theme-switch:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; }
 .theme-switch.is-dark { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); }
 
-/* the sun and moon printed on the track (the thumb covers one of them) */
-.theme-switch-icon { position: absolute; top: 50%; width: 15px; height: 15px; margin-top: -7.5px; transition: opacity 0.35s ease; }
-.theme-switch-sun { right: 9px; color: #f59e0b; opacity: 0.95; }
-.theme-switch-moon { left: 9px; color: #c7d2fe; opacity: 0; }
-.theme-switch.is-dark .theme-switch-sun { opacity: 0; }
-.theme-switch.is-dark .theme-switch-moon { opacity: 0.95; }
-
 /* twinkling stars, visible only at night */
 .theme-switch-stars { position: absolute; inset: 0; opacity: 0; transition: opacity 0.45s ease; pointer-events: none; }
 .theme-switch-stars::before, .theme-switch-stars::after { content: ""; position: absolute; border-radius: 50%; background: #fff; }
@@ -11723,7 +11716,7 @@ button, input { font-family: inherit; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .theme-switch, .theme-switch-thumb, .theme-switch-thumb-icon, .theme-switch-icon, .theme-switch-stars { transition: none; animation: none !important; }
+  .theme-switch, .theme-switch-thumb, .theme-switch-thumb-icon, .theme-switch-stars { transition: none; animation: none !important; }
   .theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after { transition: none !important; }
 }
 

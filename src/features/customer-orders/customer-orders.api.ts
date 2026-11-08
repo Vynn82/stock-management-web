@@ -6,6 +6,8 @@ import {
   CoStatus,
   CustomerOrderDetail,
   CustomerOrderSummary,
+  CustomerRow,
+  CustomerStatusValue,
   RecordPaymentInput,
 } from "./customer-orders.types";
 
@@ -130,11 +132,12 @@ function parseDetail(json: any): CustomerOrderDetail {
 const BASE = "customer-orders";
 
 /** All orders for staff, newest first. Walks the pages (100 per page, up to 10). */
-export async function fetchCustomerOrders(status?: CoStatus): Promise<CustomerOrderSummary[]> {
+export async function fetchCustomerOrders(status?: CoStatus, customerId?: string): Promise<CustomerOrderSummary[]> {
   const all: CustomerOrderSummary[] = [];
   for (let page = 1; page <= 10; page++) {
     const qs = new URLSearchParams({ page: String(page), limit: "100" });
     if (status) qs.set("status", status);
+    if (customerId) qs.set("customerId", customerId);
     const res: any = await request(`${BASE}?${qs.toString()}`);
     const rows: any[] = Array.isArray(res) ? res : (res?.data ?? res?.items ?? []);
     all.push(...rows.map(parseSummary));
@@ -142,6 +145,58 @@ export async function fetchCustomerOrders(status?: CoStatus): Promise<CustomerOr
     if (!more) break;
   }
   return all;
+}
+
+function parseCustomerRow(json: any): CustomerRow {
+  const base = parseCustomer(json);
+  const place = [json.commune, json.district, json.province].map(str).filter(Boolean) as string[];
+  const address = [str(json.address), ...place].filter(Boolean).join(", ");
+  const accounts: string[] = Array.isArray(json.telegramAccounts)
+    ? json.telegramAccounts
+        .map((a: any) => (str(a?.telegramUsername) ? `@${str(a.telegramUsername)}` : str(a?.firstName)))
+        .filter(Boolean)
+    : [];
+  const tier = json.manualTierOverride ?? json.loyaltyTier ?? null;
+  return {
+    id: String(json.id),
+    title: base.title,
+    name: base.name,
+    company: base.company,
+    phone: base.phone,
+    address: address || null,
+    telegram: base.telegram ?? accounts[0] ?? null,
+    telegramAccounts: accounts,
+    status: (str(json.status) ?? "ACTIVE") as CustomerStatusValue,
+    rejectionReason: str(json.rejectionReason),
+    tierName: str(tier?.name),
+    tierColor: str(tier?.color),
+    discountPercent: num(tier?.discountPercent),
+    orderCount: num(json.orderCount),
+    completedOrders: num(json.completedOrdersCount),
+    totalSpent: num(json.lifetimeSpending),
+    totalQuantity: num(json.totalQuantityPurchased),
+    lastOrderAt: str(json.lastOrderAt),
+    joinedAt: str(json.createdAt),
+  };
+}
+
+/** Every registered customer (newest first). Walks the pages (100 per page, up to 20). */
+export async function fetchCustomers(): Promise<CustomerRow[]> {
+  const all: CustomerRow[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const qs = new URLSearchParams({ page: String(page), limit: "100" });
+    const res: any = await request(`${BASE}/customers?${qs.toString()}`);
+    const rows: any[] = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
+    all.push(...rows.map(parseCustomerRow));
+    const pages = Number(res?.meta?.totalPages ?? 1);
+    if (Array.isArray(res) || page >= pages) break;
+  }
+  return all;
+}
+
+export async function fetchCustomer(id: string): Promise<CustomerRow> {
+  const res = await request(`${BASE}/customers/${id}`);
+  return parseCustomerRow(res);
 }
 
 export async function fetchCustomerOrder(id: string): Promise<CustomerOrderDetail> {
