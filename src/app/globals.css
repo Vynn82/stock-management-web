@@ -11854,7 +11854,7 @@ button, input { font-family: inherit; }
 }
 
 /* ===== Notifications page ===== */
-.notif-page { padding: 26px 30px 40px; color: var(--ink); max-width: 920px; }
+.notif-page { padding: 26px 30px 40px; color: var(--ink); }
 .notif-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
 .notif-title { margin: 0; display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 800; letter-spacing: -0.4px; }
 .notif-count-pill { padding: 3px 11px; border-radius: 999px; background: var(--purple); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0; }
@@ -11866,18 +11866,46 @@ button, input { font-family: inherit; }
 .notif-stat strong { display: block; font-size: 18px; font-weight: 800; line-height: 1.2; }
 .notif-stat span:not(.notif-stat-icon) { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); font-weight: 500; }
 
-.notif-group { margin-bottom: 20px; }
-.notif-group-title { margin: 0 0 8px 4px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-.notif-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.2); }
+.notif-group { margin-bottom: 22px; }
+.notif-group-title { display: flex; align-items: center; gap: 8px; margin: 0 0 8px 4px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.notif-group-title span { padding: 1px 8px; border-radius: 999px; background: rgba(114, 117, 139, 0.14); font-size: 11px; letter-spacing: 0; }
+.notif-card { container-type: inline-size; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.2); }
 .notif-pad { padding: 24px; }
 
-.notif-row { position: relative; display: flex; align-items: center; gap: 14px; padding: 16px 20px 16px 22px; color: inherit; text-decoration: none; border-bottom: 1px solid var(--card-border); transition: background 0.15s ease; }
+/* One row = one order; the columns line up under the header row. */
+.notif-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.2fr) 64px 110px 96px minmax(0, 1fr) 140px;
+  align-items: center;
+  column-gap: 16px;
+  padding: 16px 22px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--card-border);
+  transition: background 0.15s ease;
+}
 .notif-row:last-child { border-bottom: 0; }
-.notif-row::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: var(--purple); }
-.notif-row:hover { background: rgba(124, 58, 237, 0.06); }
+.notif-row:not(.notif-row-head)::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--purple); }
+.notif-row:not(.notif-row-head):hover { background: rgba(124, 58, 237, 0.06); }
 .notif-row:focus-visible { outline: 2px solid var(--purple); outline-offset: -2px; }
 
-.notif-avatar { position: relative; width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 14px; font-size: 14px; font-weight: 700; }
+.notif-row-head { padding-top: 11px; padding-bottom: 11px; background: rgba(114, 117, 139, 0.07); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+
+.notif-cell { min-width: 0; display: flex; align-items: center; gap: 12px; }
+.notif-cell-text { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.notif-cell-text strong, .notif-cell-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notif-cell-sub { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.notif-num { justify-content: flex-end; text-align: right; }
+.notif-row-head .notif-num { display: block; }
+.notif-unit { font-size: 12px; color: var(--muted); }
+.notif-customer { font-size: 14px; font-weight: 700; }
+.notif-order-no { font-size: 13.5px; font-weight: 700; }
+.notif-amount { font-size: 15px; font-weight: 800; }
+.notif-when { font-size: 13px; font-weight: 600; }
+.notif-badge-new { padding: 1px 8px; border-radius: 999px; background: rgba(124, 58, 237, 0.12); color: var(--purple); font-size: 11px; font-weight: 700; }
+
+.notif-avatar { position: relative; width: 42px; height: 42px; flex: none; display: grid; place-items: center; border-radius: 13px; font-size: 14px; font-weight: 700; }
 .notif-avatar.tone-a { background: rgba(124, 58, 237, 0.14); color: #7c3aed; }
 .notif-avatar.tone-b { background: rgba(37, 99, 235, 0.14); color: #2563eb; }
 .notif-avatar.tone-c { background: rgba(22, 163, 74, 0.14); color: #16a34a; }
@@ -11885,19 +11913,8 @@ button, input { font-family: inherit; }
 .notif-avatar.tone-e { background: rgba(219, 39, 119, 0.14); color: #db2777; }
 .notif-avatar-dot { position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border-radius: 50%; background: #ef4444; border: 2px solid var(--card-bg); }
 
-.notif-body { min-width: 0; flex: 1; }
-.notif-line1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.notif-order-no { font-size: 14px; font-weight: 700; }
-.notif-badge-new { padding: 2px 8px; border-radius: 999px; background: rgba(124, 58, 237, 0.12); color: var(--purple); font-size: 11px; font-weight: 700; }
-.notif-line2 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 3px; font-size: 13px; color: var(--muted); }
-.notif-customer { color: var(--ink); font-weight: 600; }
-.notif-amount { color: var(--ink); font-weight: 700; }
-.notif-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
-.notif-hint { margin-top: 4px; font-size: 12px; color: var(--muted); }
-
-.notif-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-.notif-time { font-size: 12px; color: var(--muted); white-space: nowrap; }
-.notif-cta { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 10px; background: var(--purple); color: #fff; font-size: 12.5px; font-weight: 600; white-space: nowrap; box-shadow: 0 6px 14px -8px rgba(109, 40, 217, 0.7); transition: transform 0.15s ease, background 0.15s ease; }
+.notif-action { justify-content: flex-end; }
+.notif-cta { display: inline-flex; align-items: center; gap: 6px; padding: 8px 15px; border-radius: 10px; background: var(--purple); color: #fff; font-size: 12.5px; font-weight: 600; white-space: nowrap; box-shadow: 0 6px 14px -8px rgba(109, 40, 217, 0.7); transition: transform 0.15s ease, background 0.15s ease; }
 .notif-row:hover .notif-cta { background: var(--purple-dark, #5420af); transform: translateX(2px); }
 
 .theme-dark .notif-stat, .theme-dark .notif-card { box-shadow: none; }
@@ -11907,11 +11924,27 @@ button, input { font-family: inherit; }
 .theme-dark .notif-avatar.tone-d { color: #f5b04a; }
 .theme-dark .notif-avatar.tone-e { color: #f08bbd; }
 
-@media (max-width: 720px) {
+/* The table adapts to the width of the card itself (not the screen), so columns never run into each other. */
+@container (max-width: 1000px) {
+  .notif-row { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.2fr) 56px 104px 92px minmax(0, 1fr); }
+  .notif-row .notif-action { display: none; }
+  .notif-row-head span:last-child { display: none; }
+}
+
+@container (max-width: 700px) {
+  .notif-row-head { display: none; }
+  .notif-row { grid-template-columns: 1fr 1fr; row-gap: 12px; padding: 16px 18px 16px 20px; }
+  .notif-customer-cell { grid-column: 1 / -1; }
+  .notif-row .notif-action { display: flex; grid-column: 1 / -1; }
+  .notif-cta { width: 100%; justify-content: center; }
+  .notif-num { justify-content: flex-start; text-align: left; }
+  .notif-cell[data-label]:not(.notif-customer-cell) { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .notif-cell[data-label]:not(.notif-customer-cell)::before { content: attr(data-label); font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+}
+
+@media (max-width: 760px) {
   .notif-page { padding: 18px 16px 32px; }
   .notif-stats { grid-template-columns: 1fr; }
-  .notif-row { flex-wrap: wrap; align-items: flex-start; }
-  .notif-side { width: 100%; flex-direction: row-reverse; justify-content: space-between; align-items: center; padding-left: 58px; }
 }
 
 /* Price fields: inline validation */
