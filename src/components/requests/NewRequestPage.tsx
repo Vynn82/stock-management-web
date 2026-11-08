@@ -9,6 +9,7 @@ import { useLiveStock } from "@/features/stock/stock-live";
 import { createStockRequest, fetchApproverCandidates, type ApproverCandidate } from "@/features/requests/requests-live";
 import SearchSelect from "@/components/ui/SearchSelect";
 
+import BackButton from "@/components/ui/BackButton";
 type RequestType = "Transfer" | "Stock Out" | "Stock In" | "Adjustment";
 const COLORS = ["sand", "lavender", "blue", "green"];
 
@@ -110,6 +111,7 @@ export default function NewRequestPage() {
 
   return (
     <main className="new-request-page">
+      <BackButton href="/requests" />
       <nav className="new-request-breadcrumb" aria-label="Breadcrumb">
         <Link href="/requests">Requests</Link>
         <span aria-hidden="true">/</span>
@@ -122,10 +124,6 @@ export default function NewRequestPage() {
       <form className="new-request-form" onSubmit={submitRequest}>
         <div className="new-request-heading">
           <h1>New Request</h1>
-          <div className="new-request-heading-actions">
-            <Link className="new-request-cancel" href="/requests">Cancel</Link>
-            <button className="new-request-submit" type="submit" disabled={submitting || !loaded}><CheckOutlined /> {submitting ? "Submitting…" : "Submit Request"}</button>
-          </div>
         </div>
 
         <div className="new-request-grid">
@@ -265,6 +263,12 @@ export default function NewRequestPage() {
             </p>
           </aside>
         </div>
+      <div className="page-form-actions">
+          <div className="new-request-heading-actions">
+            <Link className="new-request-cancel" href="/requests">Cancel</Link>
+            <button className="new-request-submit" type="submit" disabled={submitting || !loaded}><CheckOutlined /> {submitting ? "Submitting…" : "Submit Request"}</button>
+          </div>
+      </div>
       </form>
       )}
     </main>

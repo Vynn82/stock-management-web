@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Modal, Drawer, message, Tooltip } from "antd";
 import { EyeOutlined, SearchOutlined } from "@ant-design/icons";
@@ -28,6 +29,7 @@ export default function StockPage() {
     live.load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   // Which variant's photo / quantity a product row shows (product id -> variant id; empty = whole product).
   const [variantPick, setVariantPick] = useState<Record<string, string>>({});
@@ -86,14 +88,9 @@ export default function StockPage() {
   }, [products, live.warehouses]);
 
   // Handlers for action modals
+  // Stock In has its own page, like Stock Out, Transfer and Adjust.
   const handleOpenStockIn = (prod?: StockProduct) => {
-    const target = prod || products[0];
-    if (!target) return;
-    setFormProduct(target.id);
-    setFormWarehouse(target.warehouses[0]?.warehouse || WAREHOUSE_LIST[0]);
-    setFormQuantity(10);
-    setFormReason("Supplier restock");
-    setActiveModal("stockIn");
+    router.push(prod ? `/stock/${prod.id}/stock-in` : "/stock/stock-in");
   };
 
   const handleOpenStockOut = (prod?: StockProduct) => {

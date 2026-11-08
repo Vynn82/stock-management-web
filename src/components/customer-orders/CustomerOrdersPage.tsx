@@ -103,7 +103,7 @@ export default function CustomerOrdersPage() {
   ];
 
   return (
-    <div style={pageWrap}>
+    <div style={{ ...pageWrap, maxWidth: "none" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
         <div>
           <h1 style={pageTitle}>Customer orders</h1>

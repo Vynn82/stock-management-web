@@ -6,6 +6,7 @@ import { ArrowRightOutlined, CheckOutlined, CloseOutlined } from "@ant-design/ic
 import { errorText } from "@/components/common/live-state";
 import { commitRequest, timeAgo, type LiveRequest } from "@/features/requests/requests-live";
 
+import BackButton from "@/components/ui/BackButton";
 function stepLabel(actionType: string) {
   return actionType === "CERTIFIER" ? "Certifier" : "Approver";
 }
@@ -56,6 +57,7 @@ export default function RequestDetailPage({ request, onChanged }: { request: Liv
 
   return (
     <main className="request-detail-page">
+      <BackButton href="/requests" />
       <nav className="request-breadcrumb" aria-label="Breadcrumb">
         <Link href="/requests">Requests</Link>
         <span aria-hidden="true">/</span>

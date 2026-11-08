@@ -8,6 +8,7 @@ import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
 import SearchSelect from "@/components/ui/SearchSelect";
 
+import BackButton from "@/components/ui/BackButton";
 interface StockOutPageProps {
   productId?: string;
 }
@@ -106,6 +107,7 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
       {contextHolder}
 
       {/* Top Breadcrumb matching screenshot: Stock / Stock Out */}
+      <BackButton href="/stock" />
       <nav className="stock-detail-breadcrumb" aria-label="Breadcrumb">
         <Link href="/stock" className="stock-breadcrumb-link">
           Stock
@@ -118,23 +120,6 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
       <div className="stock-out-header">
         <h1 className="stock-out-title">Stock Out</h1>
 
-        <div className="stock-out-actions">
-          <button
-            type="button"
-            className="stock-out-btn-cancel"
-            onClick={handleCancel}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="stock-out-btn-confirm"
-            onClick={handleConfirmStockOut}
-            disabled={submitting}
-          >
-            {submitting ? "Processing..." : "Confirm Stock Out"}
-          </button>
-        </div>
       </div>
 
       {/* Two-Column Grid Layout */}
@@ -402,6 +387,25 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+      <div className="page-form-actions">
+        <div className="stock-out-actions">
+          <button
+            type="button"
+            className="stock-out-btn-cancel"
+            onClick={handleCancel}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="stock-out-btn-confirm"
+            onClick={handleConfirmStockOut}
+            disabled={submitting}
+          >
+            {submitting ? "Processing..." : "Confirm Stock Out"}
+          </button>
         </div>
       </div>
     </div>

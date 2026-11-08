@@ -6,6 +6,7 @@ import { downloadCSV } from "./reports-data";
 import { LiveState } from "@/components/common/live-state";
 import { shortDate, useReportData } from "@/features/reports/reports-live";
 
+import BackButton from "@/components/ui/BackButton";
 export default function LowStockReportPage() {
   const data = useReportData();
   const lowStockData = data.lowStock;
@@ -76,6 +77,7 @@ export default function LowStockReportPage() {
       {/* Header and Controls */}
       <div className="low-stock-header">
         <div className="low-stock-header-left">
+          <BackButton href="/reports" />
           <nav className="low-stock-breadcrumb" aria-label="Breadcrumb">
             <Link href="/reports" className="low-stock-breadcrumb-link">
               Reports

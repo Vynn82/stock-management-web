@@ -8,6 +8,7 @@ import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
 import SearchSelect from "@/components/ui/SearchSelect";
 
+import BackButton from "@/components/ui/BackButton";
 interface TransferStockPageProps {
   productId?: string;
 }
@@ -112,6 +113,7 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
       {contextHolder}
 
       {/* Top Breadcrumb */}
+      <BackButton href="/stock" />
       <nav className="stock-detail-breadcrumb" aria-label="Breadcrumb">
         <Link href="/stock" className="stock-breadcrumb-link">
           Stock
@@ -128,23 +130,6 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
       <div className="stock-transfer-header">
         <h1 className="stock-transfer-title">Transfer Stock</h1>
 
-        <div className="stock-transfer-actions">
-          <button
-            type="button"
-            className="stock-transfer-btn-cancel"
-            onClick={handleCancel}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="stock-transfer-btn-confirm"
-            onClick={handleConfirmTransfer}
-            disabled={submitting}
-          >
-            {submitting ? "Transferring..." : "Confirm Transfer"}
-          </button>
-        </div>
       </div>
 
       {/* Two-Column Layout */}
@@ -382,6 +367,25 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
               </span>
             )}
           </div>
+        </div>
+      </div>
+      <div className="page-form-actions">
+        <div className="stock-transfer-actions">
+          <button
+            type="button"
+            className="stock-transfer-btn-cancel"
+            onClick={handleCancel}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="stock-transfer-btn-confirm"
+            onClick={handleConfirmTransfer}
+            disabled={submitting}
+          >
+            {submitting ? "Transferring..." : "Confirm Transfer"}
+          </button>
         </div>
       </div>
     </div>

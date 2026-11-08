@@ -6,6 +6,7 @@ import { downloadCSV } from "./reports-data";
 import { LiveState } from "@/components/common/live-state";
 import { shortDate, useReportData } from "@/features/reports/reports-live";
 
+import BackButton from "@/components/ui/BackButton";
 export type TransactionType = "All" | "In" | "Out" | "Transfer" | "Adjustment";
 
 interface ChartDay {
@@ -138,6 +139,7 @@ export default function TransactionReportPage() {
       {/* Header with Breadcrumb and Controls */}
       <div className="tx-rep-header">
         <div className="tx-rep-header-left">
+          <BackButton href="/reports" />
           <nav className="tx-rep-breadcrumb" aria-label="Breadcrumb">
             <Link href="/reports" className="tx-rep-breadcrumb-link">
               Reports

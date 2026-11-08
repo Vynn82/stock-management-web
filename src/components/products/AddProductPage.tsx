@@ -10,6 +10,7 @@ import { createProduct, NewVariantInput } from "@/features/products/products-liv
 import VariantImagePicker from "./VariantImagePicker";
 import SearchSelect from "@/components/ui/SearchSelect";
 
+import BackButton from "@/components/ui/BackButton";
 interface AddProductPageProps {
   onCancel?: () => void;
   onSuccess?: () => void;
@@ -19,6 +20,67 @@ const num = (v: string): number | undefined => {
   const n = parseFloat(v.replace(/[^0-9.]/g, ""));
   return Number.isFinite(n) ? n : undefined;
 };
+
+/** A price is digits with at most 2 decimals, and must be above 0. Returns the problem, or "" when fine. */
+const PRICE_RE = /^\d+(\.\d{1,2})?$/;
+function priceError(value: string, label: string): string {
+  const t = value.trim();
+  if (!t) return `${label} is required.`;
+  if (!PRICE_RE.test(t)) return `${label} must be a number with up to 2 decimals.`;
+  if (Number(t) <= 0) return `${label} must be greater than 0.`;
+  return "";
+}
+
+/** While typing: only digits and one dot, at most 2 decimals and 9 digits before the dot. */
+function cleanPrice(value: string): string {
+  let t = value.replace(/[^0-9.]/g, "");
+  const dot = t.indexOf(".");
+  if (dot >= 0) t = t.slice(0, dot).slice(0, 9) + "." + t.slice(dot + 1).replace(/\./g, "").slice(0, 2);
+  else t = t.slice(0, 9);
+  return t;
+}
+
+function PriceField({
+  id,
+  label,
+  value,
+  onChange,
+  submitted,
+  lowerThan,
+}: {
+  id?: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  submitted: boolean;
+  /** For the selling price: the cost entered next to it, to warn about selling at a loss. */
+  lowerThan?: string;
+}) {
+  const [touched, setTouched] = useState(false);
+  const shown = touched || submitted;
+  const error = shown ? priceError(value, label) : "";
+  const loss = !error && lowerThan !== undefined && !priceError(lowerThan, "Cost") && Number(value) < Number(lowerThan);
+  return (
+    <div className="form-group">
+      <label className="form-label" htmlFor={id}>
+        {label} ($) <span style={{ color: "#DC2626" }}>*</span>
+      </label>
+      <input
+        id={id}
+        type="text"
+        className={`form-input${error ? " has-error" : ""}`}
+        placeholder="0.00"
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => onChange(cleanPrice(e.target.value))}
+        onBlur={() => setTouched(true)}
+        aria-invalid={Boolean(error)}
+      />
+      {error && <span className="field-error" role="alert">{error}</span>}
+      {loss && <span className="field-warning">Lower than the cost price — this would sell at a loss.</span>}
+    </div>
+  );
+}
 
 interface VariantDraft {
   key: number;
@@ -63,6 +125,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
   const [quantity, setQuantity] = useState("");
   const [location, setLocation] = useState("");
   const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
   const [variantRows, setVariantRows] = useState<VariantDraft[]>([]);
 
@@ -137,6 +200,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
     if (saving) return;
     if (!productName.trim()) return void messageApi.error("Please enter a product name.");
     if (!categoryCode) return void messageApi.error("Please choose a category.");
+    setSubmitted(true);
     let variantInputs: NewVariantInput[] | undefined;
     let qty = num(quantity) ?? 0;
     if (hasVariants) {
@@ -145,6 +209,10 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
       for (let i = 0; i < variantRows.length; i++) {
         const r = variantRows[i];
         if (!r.name.trim()) return void messageApi.error(`Variant ${i + 1}: enter a name.`);
+        const costProblem = priceError(r.cost, "Unit cost");
+        if (costProblem) return void messageApi.error(`Variant ${i + 1}: ${costProblem}`);
+        const sellProblem = priceError(r.sell, "Selling price");
+        if (sellProblem) return void messageApi.error(`Variant ${i + 1}: ${sellProblem}`);
         if (!r.warehouseCode) return void messageApi.error(`Variant ${i + 1}: choose a warehouse.`);
         const q = num(r.quantity);
         if (!q || q < 1) return void messageApi.error(`Variant ${i + 1}: enter a quantity of at least 1.`);
@@ -153,6 +221,10 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
       }
       qty = 1;
     } else {
+      const costProblem = priceError(unitCost, "Unit cost");
+      if (costProblem) return void messageApi.error(costProblem);
+      const sellProblem = priceError(sellingPrice, "Selling price");
+      if (sellProblem) return void messageApi.error(sellProblem);
       if (!warehouseCode) return void messageApi.error("Please choose the warehouse the stock goes into.");
       if (!qty || qty < 1) return void messageApi.error("Enter an initial quantity of at least 1.");
     }
@@ -190,6 +262,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
       {contextHolder}
 
       {/* Top Breadcrumbs */}
+      <BackButton href="/products" />
       <div className="add-product-breadcrumbs">
         <Link
           href="/products"
@@ -210,14 +283,6 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
       {/* Page Title & Action Buttons */}
       <div className="add-product-header">
         <h1 className="add-product-title">Add Product</h1>
-        <div className="add-product-actions">
-          <button type="button" className="btn-add-product-cancel" onClick={handleCancel} disabled={saving}>
-            Cancel
-          </button>
-          <button type="button" className="btn-add-product-save" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save Product"}
-          </button>
-        </div>
       </div>
 
       {loadError && (
@@ -345,18 +410,8 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
 
             <div className="form-row-three-cols">
               {!hasVariants && (<>
-              <div className="form-group">
-                <label className="form-label" htmlFor="unit-cost">
-                  Unit cost ($)
-                </label>
-                <input id="unit-cost" type="text" className="form-input" placeholder="0.00" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} inputMode="decimal" />
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="selling-price">
-                  Selling price ($)
-                </label>
-                <input id="selling-price" type="text" className="form-input" placeholder="0.00" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} inputMode="decimal" />
-              </div>
+              <PriceField id="unit-cost" label="Unit cost" value={unitCost} onChange={setUnitCost} submitted={submitted} />
+              <PriceField id="selling-price" label="Selling price" value={sellingPrice} onChange={setSellingPrice} submitted={submitted} lowerThan={unitCost} />
               </>)}
               <div className="form-group">
                 <label className="form-label" htmlFor="reorder-point">
@@ -436,14 +491,8 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                     </div>
                   </div>
                   <div className="form-row-three-cols">
-                    <div className="form-group">
-                      <label className="form-label">Unit cost ($)</label>
-                      <input type="text" className="form-input" placeholder="0.00" inputMode="decimal" value={r.cost} onChange={(e) => patchVariant(r.key, { cost: e.target.value })} />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Selling price ($)</label>
-                      <input type="text" className="form-input" placeholder="0.00" inputMode="decimal" value={r.sell} onChange={(e) => patchVariant(r.key, { sell: e.target.value })} />
-                    </div>
+                    <PriceField label="Unit cost" value={r.cost} onChange={(v) => patchVariant(r.key, { cost: v })} submitted={submitted} />
+                    <PriceField label="Selling price" value={r.sell} onChange={(v) => patchVariant(r.key, { sell: v })} submitted={submitted} lowerThan={r.cost} />
                     <div className="form-group">
                       <label className="form-label">Quantity *</label>
                       <input type="text" className="form-input" placeholder="e.g. 20" inputMode="numeric" value={r.quantity} onChange={(e) => patchVariant(r.key, { quantity: e.target.value })} />
@@ -539,6 +588,16 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
               </div>
             )}
           </div>
+        </div>
+      </div>
+      <div className="page-form-actions">
+        <div className="add-product-actions">
+          <button type="button" className="btn-add-product-cancel" onClick={handleCancel} disabled={saving}>
+            Cancel
+          </button>
+          <button type="button" className="btn-add-product-save" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save Product"}
+          </button>
         </div>
       </div>
     </div>

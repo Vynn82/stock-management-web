@@ -6,6 +6,7 @@ import { downloadCSV } from "./reports-data";
 import { LiveState } from "@/components/common/live-state";
 import { shortDate, useReportData } from "@/features/reports/reports-live";
 
+import BackButton from "@/components/ui/BackButton";
 interface AuditRecord {
   id: string;
   dateTime: string;
@@ -103,6 +104,7 @@ export default function AuditLogPage() {
       {/* Header and Controls */}
       <div className="audit-log-header">
         <div className="audit-log-header-left">
+          <BackButton href="/reports" />
           <nav className="audit-log-breadcrumb" aria-label="Breadcrumb">
             <Link href="/reports" className="audit-log-breadcrumb-link">
               Reports

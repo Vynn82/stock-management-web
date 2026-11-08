@@ -8,6 +8,7 @@ import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
 import SearchSelect from "@/components/ui/SearchSelect";
 
+import BackButton from "@/components/ui/BackButton";
 interface AdjustStockPageProps {
   productId?: string;
 }
@@ -118,6 +119,7 @@ function AdjustStockPageInner({ productId = "1" }: AdjustStockPageProps) {
       {contextHolder}
 
       {/* Top Breadcrumb */}
+      <BackButton href="/stock" />
       <nav className="stock-detail-breadcrumb" aria-label="Breadcrumb">
         <Link href="/stock" className="stock-breadcrumb-link">
           Stock
@@ -134,23 +136,6 @@ function AdjustStockPageInner({ productId = "1" }: AdjustStockPageProps) {
       <div className="stock-adjust-header">
         <h1 className="stock-adjust-title">Adjust Stock</h1>
 
-        <div className="stock-adjust-actions">
-          <button
-            type="button"
-            className="stock-adjust-btn-cancel"
-            onClick={handleCancel}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="stock-adjust-btn-confirm"
-            onClick={handleConfirmAdjustment}
-            disabled={submitting}
-          >
-            {submitting ? "Saving..." : "Confirm Adjustment"}
-          </button>
-        </div>
       </div>
 
       {/* Two-Column Grid Layout */}
@@ -432,6 +417,25 @@ function AdjustStockPageInner({ productId = "1" }: AdjustStockPageProps) {
           <div className="stock-adjust-info-box">
             This adjustment will be logged in the transaction history for {product.name}.
           </div>
+        </div>
+      </div>
+      <div className="page-form-actions">
+        <div className="stock-adjust-actions">
+          <button
+            type="button"
+            className="stock-adjust-btn-cancel"
+            onClick={handleCancel}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="stock-adjust-btn-confirm"
+            onClick={handleConfirmAdjustment}
+            disabled={submitting}
+          >
+            {submitting ? "Saving..." : "Confirm Adjustment"}
+          </button>
         </div>
       </div>
     </div>

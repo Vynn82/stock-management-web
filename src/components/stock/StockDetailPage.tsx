@@ -13,6 +13,7 @@ import { useStockStore, DetailedStockItem } from "@/store/stockStore";
 import Can from "@/components/common/Can";
 import SearchSelect from "@/components/ui/SearchSelect";
 
+import BackButton from "@/components/ui/BackButton";
 interface StockDetailPageProps {
   productId?: string;
 }
@@ -202,6 +203,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
       {contextHolder}
 
       {/* Breadcrumb matching screenshot */}
+      <BackButton href="/stock" />
       <nav className="stock-detail-breadcrumb" aria-label="Breadcrumb">
         <Link href="/stock" className="stock-breadcrumb-link">
           Stock
@@ -448,6 +450,19 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
                   <polyline points="8 17 12 21 16 17" />
                 </svg>
                 <span>Adjust</span>
+              </Link></Can>
+
+              {/* Stock In: its own page, like Stock Out */}
+              <Can any={"STOCK_ADJUST"}><Link
+                href={`/stock/${product.id}/stock-in`}
+                className="stock-action-btn"
+                style={{ textDecoration: "none" }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="19" x2="12" y2="5" />
+                  <polyline points="5 12 12 5 19 12" />
+                </svg>
+                <span>Stock In</span>
               </Link></Can>
 
               {/* Button 3: Stock Out (Red border & text) */}

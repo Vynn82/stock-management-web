@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Form, Input, InputNumber, Select, message } from "antd";
+import type { Rule } from "antd/es/form";
 import { ArrowLeftOutlined, CameraOutlined } from "@ant-design/icons";
 import { ApiError } from "@/features/live/http";
 import { LookupOption, fetchBrands, fetchCategories, fetchSuppliers } from "@/features/live/lookups";
@@ -28,6 +29,24 @@ interface FormValues {
   maximumStock?: number | null;
   variants?: { code: string; name: string; sku: string; barcode?: string; costPrice?: number | null; sellingPrice?: number | null }[];
 }
+
+/** Required, a number above 0, at most 2 decimals. */
+const priceRules = (label: string): Rule[] => [
+  { required: true, message: `${label} is required` },
+  { type: "number", min: 0.01, message: `${label} must be greater than 0` },
+];
+
+/** Warns (does not block) when the sale price is lower than the cost price. */
+const lossWarning = (costPath: (string | number)[]): Rule => ({ getFieldValue }) => ({
+  warningOnly: true,
+  validator(_, value) {
+    const cost = getFieldValue(costPath);
+    if (typeof value === "number" && typeof cost === "number" && value < cost) {
+      return Promise.reject(new Error("Lower than the cost price — this would sell at a loss."));
+    }
+    return Promise.resolve();
+  },
+});
 
 const opts = (list: LookupOption[]) => list.map((o) => ({ value: o.code, label: o.name }));
 
@@ -221,11 +240,16 @@ export default function EditProductPage({ productId }: { productId: string }) {
           <div className="panel-card" style={{ padding: 20, borderRadius: 16, marginBottom: 16 }}>
             <h2 style={{ margin: "0 0 16px", fontSize: 16 }}>Pricing and stock rules</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0 16px" }}>
-              <Form.Item name="costPrice" label="Cost price ($)" rules={[{ required: true, message: "Required" }]}>
-                <InputNumber min={0} step={0.01} style={{ width: "100%" }} />
+              <Form.Item name="costPrice" label="Cost price ($)" rules={priceRules("Cost price")}>
+                <InputNumber min={0} max={999999999.99} precision={2} step={0.01} style={{ width: "100%" }} placeholder="0.00" />
               </Form.Item>
-              <Form.Item name="sellingPrice" label="Sale price ($)" rules={[{ required: true, message: "Required" }]}>
-                <InputNumber min={0} step={0.01} style={{ width: "100%" }} />
+              <Form.Item
+                name="sellingPrice"
+                label="Sale price ($)"
+                dependencies={["costPrice"]}
+                rules={[...priceRules("Sale price"), lossWarning(["costPrice"])]}
+              >
+                <InputNumber min={0} max={999999999.99} precision={2} step={0.01} style={{ width: "100%" }} placeholder="0.00" />
               </Form.Item>
               <Form.Item name="minimumStock" label="Minimum stock" rules={[{ required: true, message: "Required" }]}>
                 <InputNumber min={0} style={{ width: "100%" }} />
@@ -270,11 +294,16 @@ export default function EditProductPage({ productId }: { productId: string }) {
                         <Form.Item name={[f.name, "barcode"]} label="Barcode">
                           <Input />
                         </Form.Item>
-                        <Form.Item name={[f.name, "costPrice"]} label="Cost ($)">
-                          <InputNumber min={0} step={0.01} style={{ width: "100%" }} />
+                        <Form.Item name={[f.name, "costPrice"]} label="Cost ($)" rules={priceRules("Cost price")}>
+                          <InputNumber min={0} max={999999999.99} precision={2} step={0.01} style={{ width: "100%" }} placeholder="0.00" />
                         </Form.Item>
-                        <Form.Item name={[f.name, "sellingPrice"]} label="Price ($)">
-                          <InputNumber min={0} step={0.01} style={{ width: "100%" }} />
+                        <Form.Item
+                          name={[f.name, "sellingPrice"]}
+                          label="Price ($)"
+                          dependencies={[["variants", f.name, "costPrice"]]}
+                          rules={[...priceRules("Sale price"), lossWarning(["variants", f.name, "costPrice"])]}
+                        >
+                          <InputNumber min={0} max={999999999.99} precision={2} step={0.01} style={{ width: "100%" }} placeholder="0.00" />
                         </Form.Item>
                       </div>
                     </div>

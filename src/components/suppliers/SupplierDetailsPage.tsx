@@ -8,6 +8,7 @@ import { errorText } from "@/components/common/live-state";
 import { suppliersApi, type SupplierOrder, type SupplierRow } from "@/features/live/master-data";
 import Can from "@/components/common/Can";
 
+import BackButton from "@/components/ui/BackButton";
 const OPEN = ["DRAFT", "SUBMITTED", "APPROVED", "PARTIALLY_RECEIVED"];
 const SPENT = ["APPROVED", "PARTIALLY_RECEIVED", "RECEIVED", "CLOSED"];
 
@@ -62,6 +63,7 @@ export default function SupplierDetailsPage({ supplier: initial, orders }: { sup
   return (
     <div className="supplier-detail-page">
       {contextHolder}
+      <BackButton href="/manage/suppliers" />
       <nav className="supplier-detail-breadcrumb" aria-label="Breadcrumb">
         <Link href="/manage/suppliers">Suppliers</Link>
         <span aria-hidden="true">/</span>

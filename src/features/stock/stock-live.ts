@@ -17,6 +17,8 @@ export interface LiveStockVariant {
   name: string;
   image?: string;
   onHand: number;
+  /** Quantity of this variant in each warehouse, by warehouse code. */
+  byWarehouse: Record<string, number>;
 }
 
 export interface LiveStockProduct {
@@ -58,7 +60,7 @@ interface ApiProduct {
   minimumStock?: number | string | null;
   category?: { name?: string } | null;
   image?: string | { url?: string } | null;
-  variants?: { id: string; code?: string; name?: string; image?: string | null; stocks?: { quantity: number | string }[] }[];
+  variants?: { id: string; code?: string; name?: string; image?: string | null; stocks?: { quantity: number | string; warehouse?: { code?: string } | null }[] }[];
   stocks?: { quantity: number | string; warehouse?: { name?: string; code?: string } | null }[];
 }
 
@@ -100,6 +102,11 @@ function toProduct(p: ApiProduct): LiveStockProduct {
     name: v.name ?? "",
     image: v.image || undefined,
     onHand: (v.stocks ?? []).reduce((sum, st) => sum + Number(st.quantity || 0), 0),
+    byWarehouse: (v.stocks ?? []).reduce<Record<string, number>>((acc, st) => {
+      const code = st.warehouse?.code ?? "";
+      acc[code] = (acc[code] ?? 0) + Number(st.quantity || 0);
+      return acc;
+    }, {}),
   }));
   return {
     id: p.id,
@@ -168,7 +175,7 @@ interface LiveStockState {
   /** Loads once; pass `force` to reload after a change. */
   load: (force?: boolean) => Promise<void>;
   /** Everything below throws `ApiError` — show its message. */
-  stockIn: (p: LiveStockProduct, warehouseCode: string, qty: number, reason: string) => Promise<void>;
+  stockIn: (p: LiveStockProduct, warehouseCode: string, qty: number, reason: string, variantCode?: string) => Promise<void>;
   stockOut: (p: LiveStockProduct, warehouseCode: string, qty: number, reason: string) => Promise<void>;
   transfer: (p: LiveStockProduct, fromCode: string, toCode: string, qty: number, reason: string) => Promise<void>;
   /** Sets the counted quantity for one warehouse (sends the difference). */
@@ -199,11 +206,13 @@ export const useLiveStock = create<LiveStockState>((set, get) => ({
     }
   },
 
-  stockIn: async (p, warehouseCode, qty, reason) => {
+  stockIn: async (p, warehouseCode, qty, reason, variantCode) => {
     await api.post("stock-adjustments", {
       productCode: p.code,
+      ...(variantCode ? { variantCode } : {}),
       warehouseCode,
       adjustmentType: "INCREASE",
+      movementType: "IN",
       quantity: qty,
       reason: reason.trim() || "Stock in",
     });
@@ -215,6 +224,7 @@ export const useLiveStock = create<LiveStockState>((set, get) => ({
       productCode: p.code,
       warehouseCode,
       adjustmentType: "DECREASE",
+      movementType: "OUT",
       quantity: qty,
       reason: reason.trim() || "Stock out",
     });

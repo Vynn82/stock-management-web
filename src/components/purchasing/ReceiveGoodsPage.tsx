@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import { useRouter } from "next/navigation";
 import { CheckOutlined } from "@ant-design/icons";
 import { LiveState, errorText } from "@/components/common/live-state";
@@ -46,6 +47,8 @@ export default function ReceiveGoodsPage({ poId }: ReceiveGoodsPageProps) {
   }, [load]);
 
   const breadcrumb = (
+    <>
+    <BackButton href={`/purchasing/${poId}`} label="Back to purchase order" />
     <nav className="po-detail-breadcrumb" aria-label="Breadcrumb">
       <Link href="/purchasing" className="po-detail-breadcrumb-link">
         Purchase Orders
@@ -65,6 +68,7 @@ export default function ReceiveGoodsPage({ poId }: ReceiveGoodsPageProps) {
         </>
       )}
     </nav>
+    </>
   );
 
   if (notFound) {
@@ -154,14 +158,6 @@ export default function ReceiveGoodsPage({ poId }: ReceiveGoodsPageProps) {
           <h1 className="po-detail-title">Receive Goods — {order.poNumber}</h1>
         </div>
 
-        <div className="po-receive-header-actions">
-          <Link href={`/purchasing/${order.id}`} className="po-receive-cancel-btn">
-            Cancel
-          </Link>
-          <button type="button" className="po-receive-confirm-btn" onClick={handleConfirmReceipt} disabled={saving}>
-            {saving ? "Saving…" : "Confirm Receipt"}
-          </button>
-        </div>
       </div>
 
       <div className="po-card po-receive-card">
@@ -272,6 +268,16 @@ export default function ReceiveGoodsPage({ poId }: ReceiveGoodsPageProps) {
             {saveError}
           </p>
         )}
+      </div>
+      <div className="page-form-actions">
+        <div className="po-receive-header-actions">
+          <Link href={`/purchasing/${order.id}`} className="po-receive-cancel-btn">
+            Cancel
+          </Link>
+          <button type="button" className="po-receive-confirm-btn" onClick={handleConfirmReceipt} disabled={saving}>
+            {saving ? "Saving…" : "Confirm Receipt"}
+          </button>
+        </div>
       </div>
     </div>
   );

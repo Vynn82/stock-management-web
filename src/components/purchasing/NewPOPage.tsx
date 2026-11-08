@@ -27,6 +27,7 @@ import { ImportModal, ReorderModal, SupplierCompareModal } from "./PoTools";
 import type { ImportRow, ReorderItem, SupplierOption } from "@/features/purchasing/purchasing-live";
 import SearchSelect from "@/components/ui/SearchSelect";
 
+import BackButton from "@/components/ui/BackButton";
 interface DraftLine {
   key: string;
   productCode?: string;
@@ -292,6 +293,7 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
         {/* Top Header & Breadcrumb */}
         <div className="po-new-header">
           <div className="po-new-header-left">
+            <BackButton href="/purchasing" />
             <nav className="po-detail-breadcrumb" aria-label="Breadcrumb">
               <Link href="/purchasing" className="po-detail-breadcrumb-link">
                 Purchase Orders
@@ -302,17 +304,6 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
             <h1 className="po-detail-title">{editing ? "Edit Purchase Order" : "New Purchase Order"}</h1>
           </div>
 
-          <div className="po-new-header-actions">
-            <Link href={orderId ? `/purchasing/${orderId}` : "/purchasing"} className="po-new-cancel-btn">
-              Cancel
-            </Link>
-            <button type="button" className="po-new-cancel-btn" disabled={saving || loading} onClick={() => void savePO(false)}>
-              Save as draft
-            </button>
-            <button type="submit" className="po-new-save-btn" disabled={saving || loading}>
-              {saving ? "Saving…" : "Save Purchase Order"}
-            </button>
-          </div>
         </div>
 
         {/* 2-column Grid */}
@@ -481,11 +472,16 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
                         <td className="po-line-action">
                           <button
                             type="button"
-                            className="po-inline-confirm-btn"
-                            onClick={handleAddLineItem}
-                            title="Add item"
+                            className="po-line-delete-btn"
+                            onClick={() => {
+                              setIsAddingItem(false);
+                              setNewKey("");
+                              setNewQty(50);
+                              setNewUnitCost(0);
+                            }}
+                            aria-label="Remove line"
                           >
-                            ✓
+                            <CloseOutlined />
                           </button>
                         </td>
                       </tr>
@@ -590,6 +586,19 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
             </div>
           </div>
         </div>
+      <div className="page-form-actions">
+          <div className="po-new-header-actions">
+            <Link href={orderId ? `/purchasing/${orderId}` : "/purchasing"} className="po-new-cancel-btn">
+              Cancel
+            </Link>
+            <button type="button" className="po-new-cancel-btn" disabled={saving || loading} onClick={() => void savePO(false)}>
+              Save as draft
+            </button>
+            <button type="submit" className="po-new-save-btn" disabled={saving || loading}>
+              {saving ? "Saving…" : "Save Purchase Order"}
+            </button>
+          </div>
+      </div>
       </form>
     </div>
   );

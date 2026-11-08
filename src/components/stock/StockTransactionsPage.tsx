@@ -6,6 +6,7 @@ import { message } from "antd";
 import StockGate from "./StockGate";
 import { useStockStore, GlobalStockTransaction } from "@/store/stockStore";
 
+import BackButton from "@/components/ui/BackButton";
 function StockTransactionsPageInner() {
   const { globalTransactions } = useStockStore();
   const [messageApi, contextHolder] = message.useMessage();
@@ -75,6 +76,7 @@ function StockTransactionsPageInner() {
       {contextHolder}
 
       {/* Breadcrumb: Stock / Transactions */}
+      <BackButton href="/stock" />
       <nav className="stock-detail-breadcrumb" aria-label="Breadcrumb">
         <Link href="/stock" className="stock-breadcrumb-link">
           Stock
@@ -139,7 +141,7 @@ function StockTransactionsPageInner() {
         </div>
 
         {/* Type Filter */}
-        <div className="stock-tx-filter-wrap">
+        <div className="stock-tx-filter-wrap stock-tx-filter-type">
           <select
             className="stock-tx-select"
             value={selectedType}
@@ -167,7 +169,7 @@ function StockTransactionsPageInner() {
         </div>
 
         {/* Date Range Filter */}
-        <div className="stock-tx-filter-wrap">
+        <div className="stock-tx-filter-wrap stock-tx-filter-date">
           <svg
             className="stock-tx-calendar-icon"
             width="14"

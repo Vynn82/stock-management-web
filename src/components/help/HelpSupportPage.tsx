@@ -44,7 +44,8 @@ export default function HelpSupportPage() {
         activeKey={open}
         onChange={(k) => setOpen(Array.isArray(k) ? k : [k])}
         items={FAQ.map((f, i) => ({ key: String(i), label: <strong>{f.q}</strong>, children: <p style={{ margin: 0 }}>{f.a}</p> }))}
-        style={{ marginBottom: 24, background: "var(--card, #fff)", borderRadius: 14 }}
+        className="help-collapse"
+        style={{ marginBottom: 24 }}
       />
 
       <h2 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 10px" }}>Contact us</h2>
@@ -54,12 +55,12 @@ export default function HelpSupportPage() {
             key={c.label}
             type="button"
             onClick={() => copy(c.label, c.value)}
-            style={{ display: "flex", alignItems: "center", gap: 12, textAlign: "left", background: "var(--card, #fff)", border: "1px solid #ECE9F3", borderRadius: 14, padding: "12px 16px", cursor: "pointer" }}
+            className="help-contact"
           >
-            <span style={{ width: 36, height: 36, borderRadius: 10, background: "#F5F3FF", color: "#6D28D9", display: "grid", placeItems: "center" }}>{c.icon}</span>
+            <span className="help-contact-icon">{c.icon}</span>
             <span style={{ flex: 1 }}>
-              <strong style={{ display: "block", fontSize: 13.5 }}>{c.label}</strong>
-              <span style={{ color: "var(--muted)", fontSize: 12.5 }}>{c.value}</span>
+              <strong className="help-contact-label">{c.label}</strong>
+              <span className="help-contact-value">{c.value}</span>
             </span>
             <CopyOutlined style={{ color: "var(--muted)" }} />
           </button>

@@ -6,6 +6,7 @@ import { downloadCSV } from "./reports-data";
 import { LiveState } from "@/components/common/live-state";
 import { shortDate, usd, useReportData } from "@/features/reports/reports-live";
 
+import BackButton from "@/components/ui/BackButton";
 interface CategoryBar {
   name: string;
   value: number;
@@ -115,6 +116,7 @@ export default function StockValuationPage() {
       {/* Top Breadcrumb & Header Row */}
       <div className="stock-val-header">
         <div className="stock-val-header-left">
+          <BackButton href="/reports" />
           <nav className="stock-val-breadcrumb" aria-label="Breadcrumb">
             <Link href="/reports" className="stock-val-breadcrumb-link">
               Reports

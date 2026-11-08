@@ -8,6 +8,7 @@ import { message } from "antd";
 import { errorText } from "@/components/common/live-state";
 import { fetchRoles, inviteMember, type RoleRow } from "@/features/users/users-live";
 
+import BackButton from "@/components/ui/BackButton";
 type TeamRole = "Admin" | "Manager" | "Staff";
 
 const roleOptions: { role: TeamRole; description: string }[] = [
@@ -67,16 +68,13 @@ export default function InviteTeamMemberPage() {
     <div className="team-invite-container">
       <header className="team-invite-heading">
         <div>
+          <BackButton href="/users" />
           <nav className="team-invite-breadcrumb" aria-label="Breadcrumb">
             <Link href="/users">Team Members</Link>
             <span aria-hidden="true">/</span>
             <span>Invite</span>
           </nav>
           <h1>Invite Team Member</h1>
-        </div>
-        <div className="team-invite-actions">
-          <button className="team-invite-cancel" type="button" onClick={() => router.push("/users")}>Cancel</button>
-          <button className="team-invite-submit" type="submit" form="team-invite-form" disabled={saving}>{saving ? "Sending…" : "Send Invite"}</button>
         </div>
       </header>
       <form className="team-invite-card" id="team-invite-form" onSubmit={submitInvite}>
@@ -136,6 +134,12 @@ export default function InviteTeamMemberPage() {
         <div className="team-invite-notice">
           <InfoCircleOutlined aria-hidden="true" />
           <p>Once invited, StockFlow generates a Staff ID and temporary password and emails both to this address so they can sign in right away.</p>
+        </div>
+        <div className="page-form-actions">
+        <div className="team-invite-actions">
+          <button className="team-invite-cancel" type="button" onClick={() => router.push("/users")}>Cancel</button>
+          <button className="team-invite-submit" type="submit" form="team-invite-form" disabled={saving}>{saving ? "Sending…" : "Send Invite"}</button>
+        </div>
         </div>
       </form>
     </div>
