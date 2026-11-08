@@ -293,6 +293,9 @@ export interface SupplierOption {
   averageLeadDays: number | null;
   fillRate: number | null;
   averageRating: number | null;
+  ratingCount?: number;
+  totalQuantity?: number;
+  lastOrderedAt?: string | null;
   damagedQuantity: number;
   wrongQuantity: number;
 }

@@ -84,7 +84,7 @@ export default function DashboardShell({
   };
   // Customer orders waiting for review: badge in the sidebar, and a banner
   // when a new one arrives while someone is on the site.
-  const { count: pendingOrders } = usePendingOrders((fresh) => {
+  const { unseenCount: pendingOrders } = usePendingOrders((fresh) => {
     const first = fresh[0];
     notification.info({
       key: "new-customer-order",

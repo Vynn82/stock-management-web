@@ -9,8 +9,7 @@ export type SettingsTab =
   | "general"
   | "profile"
   | "notifications"
-  | "security"
-  | "billing";
+  | "security";
 
 export interface ProfileData {
   fullName: string;
@@ -38,38 +37,6 @@ function describeBrowser(): ActiveSession {
   const mobile = /Android|iPhone|iPad/.test(ua);
   return { id: "current", title: `${browser} on ${os}`, meta: "This device · Active now", deviceType: mobile ? "mobile" : "desktop", isCurrent: true };
 }
-
-export interface InvoiceItem {
-  id: string;
-  date: string;
-  description: string;
-  amount: string;
-  status: "Paid" | "Pending";
-}
-
-const initialInvoices: InvoiceItem[] = [
-  {
-    id: "inv-1",
-    date: "Aug 1, 2026",
-    description: "Growth Plan — Monthly",
-    amount: "$49.00",
-    status: "Paid",
-  },
-  {
-    id: "inv-2",
-    date: "Jul 1, 2026",
-    description: "Growth Plan — Monthly",
-    amount: "$49.00",
-    status: "Paid",
-  },
-  {
-    id: "inv-3",
-    date: "Jun 1, 2026",
-    description: "Growth Plan — Monthly",
-    amount: "$49.00",
-    status: "Paid",
-  },
-];
 
 const languages = [
   "English",
@@ -121,7 +88,7 @@ export default function SettingsPage({
   }
 
   // Profile data state
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const profile: ProfileData = {
     fullName: user?.name || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "—",
     email: user?.email || user?.profile?.email || "—",
@@ -134,10 +101,14 @@ export default function SettingsPage({
   };
 
   // Edit form state
-  const [editFullName, setEditFullName] = useState(profile.fullName);
-  const [editEmail, setEditEmail] = useState(profile.email);
-  const [editPhone, setEditPhone] = useState(profile.phone);
+  // "—" is only what the page shows when a value is missing; it is not a real value to edit.
+  const real = (v: string) => (v === "—" ? "" : v);
+  const [editFullName, setEditFullName] = useState(real(profile.fullName));
+  const [editEmail, setEditEmail] = useState(real(profile.email));
+  const [editPhone, setEditPhone] = useState(real(profile.phone));
   const [editAvatarUrl, setEditAvatarUrl] = useState<string | null>(profile.avatarUrl);
+  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -276,83 +247,6 @@ export default function SettingsPage({
     showToast("Two-factor authentication enabled successfully!");
   }
 
-  // Billing states matching screenshot
-  const [currentPlan, setCurrentPlan] = useState({
-    name: "Growth Plan",
-    price: "$49",
-    frequency: "/month",
-    features: "500 SKUs · 5 warehouses · Unlimited users",
-  });
-  const [paymentCard, setPaymentCard] = useState({
-    brand: "Visa",
-    last4: "4242",
-    exp: "08/27",
-  });
-  const [invoices] = useState<InvoiceItem[]>(initialInvoices);
-
-  // Billing Modals
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [showCardModal, setShowCardModal] = useState(false);
-  const [selectedPlanTier, setSelectedPlanTier] = useState("growth");
-  const [cardHolder, setCardHolder] = useState("Visal Khem");
-  const [cardNumber, setCardNumber] = useState("•••• •••• •••• 4242");
-  const [cardExpiry, setCardExpiry] = useState("08/27");
-  const [cardCvc, setCardCvc] = useState("•••");
-
-  function handleDownloadInvoice(inv: InvoiceItem) {
-    showToast(`Downloading invoice for ${inv.date} (${inv.amount})...`);
-    const content = `STOCKFLOW INVOICE\n-----------------\nInvoice ID: ${inv.id}\nDate: ${inv.date}\nDescription: ${inv.description}\nAmount: ${inv.amount}\nStatus: ${inv.status}\nCustomer: Visal Khem (visal@stockflow.com)\nPayment Method: Visa ending in ${paymentCard.last4}\nThank you for choosing StockFlow!`;
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Invoice-${inv.date.replace(/[\s,]+/g, "-")}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function handleSaveCard() {
-    const rawNumber = cardNumber.replace(/\s+/g, "");
-    const last4 = rawNumber.length >= 4 ? rawNumber.slice(-4) : "4242";
-    setPaymentCard((prev) => ({
-      ...prev,
-      last4,
-      exp: cardExpiry || "08/27",
-    }));
-    setShowCardModal(false);
-    showToast("Payment method updated successfully!");
-  }
-
-  function handleSelectPlan(planKey: string) {
-    setSelectedPlanTier(planKey);
-    if (planKey === "starter") {
-      setCurrentPlan({
-        name: "Starter Plan",
-        price: "$29",
-        frequency: "/month",
-        features: "100 SKUs · 2 warehouses · 3 users",
-      });
-      showToast("Plan changed to Starter Plan ($29/month).");
-    } else if (planKey === "growth") {
-      setCurrentPlan({
-        name: "Growth Plan",
-        price: "$49",
-        frequency: "/month",
-        features: "500 SKUs · 5 warehouses · Unlimited users",
-      });
-      showToast("Plan set to Growth Plan ($49/month).");
-    } else if (planKey === "enterprise") {
-      setCurrentPlan({
-        name: "Enterprise Pro",
-        price: "$99",
-        frequency: "/month",
-        features: "Unlimited SKUs · Unlimited warehouses · 24/7 support",
-      });
-      showToast("Plan upgraded to Enterprise Pro ($99/month).");
-    }
-    setShowUpgradeModal(false);
-  }
-
   // Close dropdowns on click outside
   useEffect(() => {
     function handlePointerDown(e: PointerEvent) {
@@ -374,33 +268,61 @@ export default function SettingsPage({
 
   function handleToggleDarkMode() {
     const next = isDarkMode ? "light" : "dark";
+    // Fade the whole page between the two themes instead of snapping.
+    const root = document.documentElement;
+    root.classList.add("theme-switching");
+    window.setTimeout(() => root.classList.remove("theme-switching"), 450);
     setTheme(next);
     showToast(`Dark mode ${next === "dark" ? "enabled" : "disabled"}.`);
   }
 
-  function handleStartEdit() {
-    setEditFullName(profile.fullName);
-    setEditEmail(profile.email);
-    setEditPhone(profile.phone);
+  function resetEditForm() {
+    setEditFullName(real(profile.fullName));
+    setEditEmail(real(profile.email));
+    setEditPhone(real(profile.phone));
     setEditAvatarUrl(profile.avatarUrl);
+    setEditAvatarFile(null);
+  }
+
+  function handleStartEdit() {
+    resetEditForm();
     setIsEditingProfile(true);
   }
 
   function handleCancelEdit() {
-    setEditFullName(profile.fullName);
-    setEditEmail(profile.email);
-    setEditPhone(profile.phone);
-    setEditAvatarUrl(profile.avatarUrl);
+    resetEditForm();
     setIsEditingProfile(false);
   }
 
-  function handleSaveProfile() {
-    if (!editFullName.trim()) {
+  async function handleSaveProfile() {
+    if (savingProfile) return;
+    const name = editFullName.trim();
+    const email = editEmail.trim();
+    if (!name) {
       showToast("Full name cannot be empty.");
       return;
     }
-    setIsEditingProfile(false);
-    showToast("Profile details are managed by an administrator, so nothing was changed.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showToast("Please enter a valid email address.");
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      await api.patch("users/me", { fullName: name, email, phone: editPhone.trim() });
+      if (editAvatarFile) {
+        const form = new FormData();
+        form.append("image", editAvatarFile);
+        await api.postForm("users/me/avatar", form);
+      }
+      await refreshUser();
+      setEditAvatarFile(null);
+      setIsEditingProfile(false);
+      showToast("Profile updated.");
+    } catch (e) {
+      showToast(e instanceof ApiError && e.message ? e.message : "Could not update the profile. Please try again.");
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -410,10 +332,15 @@ export default function SettingsPage({
       showToast("Please choose an image file (PNG, JPG, WebP).");
       return;
     }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("The photo is too large (max 5 MB).");
+      return;
+    }
+    setEditAvatarFile(file);
     const reader = new FileReader();
     reader.onload = () => {
       setEditAvatarUrl(reader.result as string);
-      showToast("Photo selected.");
+      showToast("Photo selected. Press Save Changes to keep it.");
     };
     reader.readAsDataURL(file);
   }
@@ -468,9 +395,10 @@ export default function SettingsPage({
               <button
                 type="button"
                 className="edit-profile-save-btn"
-                onClick={handleSaveProfile}
+                onClick={() => void handleSaveProfile()}
+                disabled={savingProfile}
               >
-                Save Changes
+                {savingProfile ? "Saving…" : "Save Changes"}
               </button>
             </div>
           </div>
@@ -501,13 +429,16 @@ export default function SettingsPage({
                 >
                   Change photo
                 </button>
-                {editAvatarUrl && (
+                {editAvatarFile && (
                   <button
                     type="button"
                     className="edit-avatar-remove-btn"
-                    onClick={() => setEditAvatarUrl(null)}
+                    onClick={() => {
+                      setEditAvatarFile(null);
+                      setEditAvatarUrl(profile.avatarUrl);
+                    }}
                   >
-                    Remove
+                    Undo
                   </button>
                 )}
               </div>
@@ -636,15 +567,6 @@ export default function SettingsPage({
             onClick={() => handleSelectTab("security")}
           >
             Security
-          </button>
-          <button
-            type="button"
-            className={`settings-nav-item ${
-              activeTab === "billing" ? "active" : ""
-            }`}
-            onClick={() => handleSelectTab("billing")}
-          >
-            Billing
           </button>
           <button
             type="button"
@@ -811,109 +733,6 @@ export default function SettingsPage({
                     </div>
                   </div>
                 ))}
-              </div>
-            </section>
-          </main>
-        ) : activeTab === "billing" ? (
-          /* Right Column: Billing Tab uses 3 stacked cards */
-          <main className="settings-billing-col">
-            {/* Card 1: Current Plan Banner */}
-            <section className="billing-plan-card">
-              <div className="billing-plan-left">
-                <div className="billing-plan-tag">CURRENT PLAN</div>
-                <div className="billing-plan-name-row">
-                  <span className="billing-plan-name">
-                    {currentPlan.name} — {currentPlan.price}
-                  </span>
-                  <span className="billing-plan-freq">{currentPlan.frequency}</span>
-                </div>
-                <div className="billing-plan-features">{currentPlan.features}</div>
-              </div>
-              <button
-                type="button"
-                className="billing-upgrade-btn"
-                onClick={() => setShowUpgradeModal(true)}
-              >
-                Upgrade plan
-              </button>
-            </section>
-
-            {/* Card 2: Payment Method */}
-            <section className="billing-card">
-              <h2 className="billing-card-title">Payment method</h2>
-              <div className="billing-payment-row">
-                <div className="billing-payment-left">
-                  <div className="visa-badge">VISA</div>
-                  <div className="billing-payment-details">
-                    <div className="billing-payment-card-name">
-                      {paymentCard.brand} ending in {paymentCard.last4}
-                    </div>
-                    <div className="billing-payment-card-exp">
-                      Expires {paymentCard.exp}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="billing-update-btn"
-                  onClick={() => setShowCardModal(true)}
-                >
-                  Update
-                </button>
-              </div>
-            </section>
-
-            {/* Card 3: Billing History */}
-            <section className="billing-card">
-              <h2 className="billing-card-title">Billing history</h2>
-              <div style={{ overflowX: "auto" }}>
-                <table className="billing-history-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: "24%" }}>DATE</th>
-                      <th style={{ width: "40%" }}>DESCRIPTION</th>
-                      <th style={{ width: "16%" }}>AMOUNT</th>
-                      <th style={{ width: "12%" }}>STATUS</th>
-                      <th style={{ width: "8%", textAlign: "right" }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoices.map((inv) => (
-                      <tr key={inv.id}>
-                        <td className="billing-td-date">{inv.date}</td>
-                        <td className="billing-td-desc">{inv.description}</td>
-                        <td className="billing-td-amount">{inv.amount}</td>
-                        <td>
-                          <span className="badge-paid">{inv.status}</span>
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          <button
-                            type="button"
-                            className="billing-download-btn"
-                            onClick={() => handleDownloadInvoice(inv)}
-                            title={`Download invoice for ${inv.date}`}
-                            aria-label={`Download invoice for ${inv.date}`}
-                          >
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                              <polyline points="7 10 12 15 17 10" />
-                              <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </section>
           </main>
@@ -1097,22 +916,40 @@ export default function SettingsPage({
               <div className="settings-row no-border">
                 <div className="settings-label-group">
                   <div className="settings-label">Dark mode</div>
-                  <div className="settings-sublabel">
-                    Follows your device automatically
-                  </div>
                 </div>
-                <div className="settings-control">
+                <div className="settings-control theme-switch-control">
+                  <span className="theme-switch-state" aria-live="polite">
+                    {isDarkMode ? "Dark" : "Light"}
+                  </span>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={isDarkMode}
-                    className={`settings-toggle-switch ${
-                      isDarkMode ? "active" : ""
-                    }`}
+                    className={`theme-switch ${isDarkMode ? "is-dark" : ""}`}
                     onClick={handleToggleDarkMode}
                     aria-label="Toggle dark mode"
                   >
-                    <span className="settings-toggle-thumb" />
+                    <span className="theme-switch-stars" aria-hidden="true" />
+                    <svg className="theme-switch-icon theme-switch-sun" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="12" cy="12" r="4" fill="currentColor" />
+                      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
+                      </g>
+                    </svg>
+                    <svg className="theme-switch-icon theme-switch-moon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z" fill="currentColor" />
+                    </svg>
+                    <span className="theme-switch-thumb">
+                      <svg className="theme-switch-thumb-icon sun" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="4.2" fill="currentColor" />
+                        <g stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4" />
+                        </g>
+                      </svg>
+                      <svg className="theme-switch-thumb-icon moon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z" fill="currentColor" />
+                      </svg>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1554,154 +1391,6 @@ export default function SettingsPage({
                 onClick={handleVerifyAndEnable2FA}
               >
                 Verify & Enable
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Upgrade Plan Modal */}
-      {showUpgradeModal && (
-        <div
-          className="security-modal-backdrop"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowUpgradeModal(false);
-          }}
-        >
-          <div className="security-modal-dialog" style={{ maxWidth: 560 }}>
-            <h3 className="security-modal-title">Select a Plan</h3>
-            <p className="security-modal-desc">
-              Scale your inventory capacity and multi-warehouse operations.
-            </p>
-            <div className="plan-cards-grid">
-              <div
-                className={`plan-option-card ${
-                  selectedPlanTier === "starter" ? "selected" : ""
-                }`}
-                onClick={() => setSelectedPlanTier("starter")}
-              >
-                <div className="plan-option-name">Starter</div>
-                <div className="plan-option-price">$29/mo</div>
-                <div className="plan-option-features">
-                  100 SKUs<br />2 warehouses<br />3 users
-                </div>
-              </div>
-              <div
-                className={`plan-option-card ${
-                  selectedPlanTier === "growth" ? "selected" : ""
-                }`}
-                onClick={() => setSelectedPlanTier("growth")}
-              >
-                <div className="plan-option-name">Growth</div>
-                <div className="plan-option-price">$49/mo</div>
-                <div className="plan-option-features">
-                  500 SKUs<br />5 warehouses<br />Unlimited users
-                </div>
-              </div>
-              <div
-                className={`plan-option-card ${
-                  selectedPlanTier === "enterprise" ? "selected" : ""
-                }`}
-                onClick={() => setSelectedPlanTier("enterprise")}
-              >
-                <div className="plan-option-name">Enterprise</div>
-                <div className="plan-option-price">$99/mo</div>
-                <div className="plan-option-features">
-                  Unlimited SKUs<br />All warehouses<br />24/7 support
-                </div>
-              </div>
-            </div>
-            <div className="security-modal-actions">
-              <button
-                type="button"
-                className="edit-profile-cancel-btn"
-                onClick={() => setShowUpgradeModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="edit-profile-save-btn"
-                onClick={() => handleSelectPlan(selectedPlanTier)}
-              >
-                Confirm Plan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Update Payment Method Modal */}
-      {showCardModal && (
-        <div
-          className="security-modal-backdrop"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowCardModal(false);
-          }}
-        >
-          <div className="security-modal-dialog">
-            <h3 className="security-modal-title">Update Payment Method</h3>
-            <p className="security-modal-desc">
-              Enter your credit or debit card details for recurring billing.
-            </p>
-            <div className="security-modal-fields">
-              <div>
-                <label className="edit-profile-label">Cardholder name</label>
-                <input
-                  type="text"
-                  className="edit-profile-input"
-                  value={cardHolder}
-                  onChange={(e) => setCardHolder(e.target.value)}
-                  placeholder="Visal Khem"
-                />
-              </div>
-              <div>
-                <label className="edit-profile-label">Card number</label>
-                <input
-                  type="text"
-                  className="edit-profile-input"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  placeholder="4242 4242 4242 4242"
-                />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label className="edit-profile-label">Expires</label>
-                  <input
-                    type="text"
-                    className="edit-profile-input"
-                    value={cardExpiry}
-                    onChange={(e) => setCardExpiry(e.target.value)}
-                    placeholder="MM/YY"
-                  />
-                </div>
-                <div>
-                  <label className="edit-profile-label">CVC</label>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    className="edit-profile-input"
-                    value={cardCvc}
-                    onChange={(e) => setCardCvc(e.target.value)}
-                    placeholder="123"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="security-modal-actions">
-              <button
-                type="button"
-                className="edit-profile-cancel-btn"
-                onClick={() => setShowCardModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="edit-profile-save-btn"
-                onClick={handleSaveCard}
-              >
-                Save Card
               </button>
             </div>
           </div>

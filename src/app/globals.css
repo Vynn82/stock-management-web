@@ -11181,113 +11181,6 @@ button, input { font-family: inherit; }
   border: 1px solid #242938;
 }
 
-/* ==========================================================================
-   BILLING TAB STYLES (3 Distinct Stacked Cards)
-   ========================================================================== */
-.settings-billing-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* Card 1: Current Plan Banner */
-.billing-plan-card {
-  background: #6320ee;
-  border-radius: 16px;
-  padding: 26px 32px;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  box-shadow: 0 4px 16px rgba(99, 32, 238, 0.28);
-}
-
-.billing-plan-tag {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  opacity: 0.88;
-  margin-bottom: 6px;
-}
-
-.billing-plan-name-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0;
-}
-
-.billing-plan-name {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-}
-
-.billing-plan-freq {
-  font-size: 13px;
-  font-weight: 400;
-  opacity: 0.85;
-}
-
-.billing-plan-features {
-  font-size: 12.5px;
-  opacity: 0.88;
-  margin-top: 6px;
-}
-
-.billing-upgrade-btn {
-  height: 40px;
-  padding: 0 24px;
-  background: #ffffff;
-  border: 0;
-  border-radius: 9px;
-  color: #6320ee;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-
-.billing-upgrade-btn:hover {
-  background: #fbfafc;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-}
-
-/* Card 2: Payment Method Card */
-.billing-card {
-  background: #ffffff;
-  border: 1px solid rgba(224, 220, 235, 0.75);
-  border-radius: 16px;
-  padding: 24px 32px;
-  box-shadow: 0 2px 6px rgba(45, 34, 77, 0.02);
-}
-
-.billing-card-title {
-  margin: 0 0 18px 0;
-  font-size: 15px;
-  font-weight: 700;
-  color: #111827;
-  letter-spacing: -0.2px;
-}
-
-.billing-payment-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.billing-payment-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
 .visa-badge {
   width: 44px;
   height: 28px;
@@ -11305,85 +11198,6 @@ button, input { font-family: inherit; }
   box-shadow: 0 1px 3px rgba(23, 37, 84, 0.2);
 }
 
-.billing-payment-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.billing-payment-card-name {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #111827;
-}
-
-.billing-payment-card-exp {
-  font-size: 11.5px;
-  color: #72758b;
-  margin-top: 2px;
-}
-
-.billing-update-btn {
-  height: 36px;
-  padding: 0 20px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  color: #374151;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.14s ease;
-}
-
-.billing-update-btn:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
-  color: #111827;
-}
-
-/* Card 3: Billing History */
-.billing-history-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.billing-history-table th {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: #8c8fa7;
-  padding-bottom: 14px;
-  border-bottom: 1px solid #f2eff7;
-  text-align: left;
-}
-
-.billing-history-table td {
-  padding: 16px 0;
-  border-bottom: 1px solid #f2eff7;
-  font-size: 13px;
-  vertical-align: middle;
-}
-
-.billing-history-table tr:last-child td {
-  border-bottom: 0;
-}
-
-.billing-td-date {
-  font-weight: 600;
-  color: #111827;
-}
-
-.billing-td-desc {
-  color: #374151;
-  font-weight: 500;
-}
-
-.billing-td-amount {
-  font-weight: 700;
-  color: #111827;
-}
-
 .badge-paid {
   display: inline-flex;
   align-items: center;
@@ -11396,127 +11210,9 @@ button, input { font-family: inherit; }
   letter-spacing: 0.2px;
 }
 
-.billing-download-btn {
-  background: transparent;
-  border: 0;
-  padding: 6px;
-  color: #72758b;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.14s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.billing-download-btn:hover {
-  color: #6320ee;
-  background: #f4effe;
-}
-
-/* Plan Modal */
-.plan-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin: 16px 0 20px 0;
-}
-
-.plan-option-card {
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  text-align: left;
-  background: #ffffff;
-}
-
-.plan-option-card.selected {
-  border-color: #6320ee;
-  background: #faf8ff;
-}
-
-.plan-option-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 4px;
-}
-
-.plan-option-price {
-  font-size: 18px;
-  font-weight: 700;
-  color: #6320ee;
-  margin-bottom: 8px;
-}
-
-.plan-option-features {
-  font-size: 11px;
-  color: #72758b;
-  line-height: 1.4;
-}
-
-/* Dark Mode Overrides for Billing */
-.theme-dark .billing-card {
-  background: #141721;
-  border-color: #242938;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-}
-
-.theme-dark .billing-card-title,
-.theme-dark .billing-payment-card-name,
-.theme-dark .billing-td-date,
-.theme-dark .billing-td-amount,
-.theme-dark .plan-option-name {
-  color: #f1f2f6;
-}
-
-.theme-dark .billing-payment-card-exp,
-.theme-dark .billing-history-table th,
-.theme-dark .plan-option-features {
-  color: #9295a6;
-}
-
-.theme-dark .billing-td-desc {
-  color: #cbd5e1;
-}
-
-.theme-dark .billing-history-table td,
-.theme-dark .billing-history-table th {
-  border-bottom-color: #242938;
-}
-
-.theme-dark .billing-update-btn {
-  background: #191d28;
-  border-color: #2e3546;
-  color: #e2e4ec;
-}
-
-.theme-dark .billing-update-btn:hover {
-  background: #242938;
-  border-color: #3e475d;
-  color: #ffffff;
-}
-
 .theme-dark .badge-paid {
   background: rgba(34, 197, 94, 0.18);
   color: #4ade80;
-}
-
-.theme-dark .billing-download-btn:hover {
-  color: #a78bfa;
-  background: #251e3d;
-}
-
-.theme-dark .plan-option-card {
-  background: #10131a;
-  border-color: #242938;
-}
-
-.theme-dark .plan-option-card.selected {
-  background: #251e3d;
-  border-color: #6320ee;
 }
 
 
@@ -11815,6 +11511,11 @@ button, input { font-family: inherit; }
 .page-back-btn {
   display: inline-flex;
   align-items: center;
+  align-self: flex-start;
+  justify-self: start;
+  width: fit-content;
+  max-width: 100%;
+  flex: 0 0 auto;
   gap: 6px;
   margin: 0 0 12px;
   padding: 6px 14px;
@@ -11955,3 +11656,84 @@ button, input { font-family: inherit; }
 .theme-dark .form-input.has-error { background: rgba(239, 68, 68, 0.1); }
 .theme-dark .field-error { color: #f87171; }
 .theme-dark .field-warning { color: #fbbf24; }
+
+/* ===== Dark mode switch: sun / moon ===== */
+.theme-switch-control { display: flex; align-items: center; gap: 12px; }
+.theme-switch-state { min-width: 34px; text-align: right; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+
+.theme-switch {
+  position: relative;
+  width: 64px;
+  height: 32px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  overflow: hidden;
+  background: linear-gradient(135deg, #8ec5ff 0%, #c9e6ff 100%);
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.18);
+  transition: background 0.45s ease, box-shadow 0.3s ease;
+}
+.theme-switch:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; }
+.theme-switch.is-dark { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); }
+
+/* the sun and moon printed on the track (the thumb covers one of them) */
+.theme-switch-icon { position: absolute; top: 50%; width: 15px; height: 15px; margin-top: -7.5px; transition: opacity 0.35s ease; }
+.theme-switch-sun { right: 9px; color: #f59e0b; opacity: 0.95; }
+.theme-switch-moon { left: 9px; color: #c7d2fe; opacity: 0; }
+.theme-switch.is-dark .theme-switch-sun { opacity: 0; }
+.theme-switch.is-dark .theme-switch-moon { opacity: 0.95; }
+
+/* twinkling stars, visible only at night */
+.theme-switch-stars { position: absolute; inset: 0; opacity: 0; transition: opacity 0.45s ease; pointer-events: none; }
+.theme-switch-stars::before, .theme-switch-stars::after { content: ""; position: absolute; border-radius: 50%; background: #fff; }
+.theme-switch-stars::before { width: 2px; height: 2px; left: 22px; top: 9px; box-shadow: 8px 10px 0 0 #fff, 4px 16px 0 -0.5px #e0e7ff; }
+.theme-switch-stars::after { width: 3px; height: 3px; left: 14px; top: 20px; opacity: 0.8; }
+.theme-switch.is-dark .theme-switch-stars { opacity: 1; animation: theme-twinkle 2.4s ease-in-out infinite; }
+@keyframes theme-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+.theme-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: #f59e0b;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3);
+  transition: transform 0.45s cubic-bezier(0.34, 1.4, 0.5, 1), background 0.3s ease, color 0.3s ease;
+}
+.theme-switch.is-dark .theme-switch-thumb { transform: translateX(32px) rotate(360deg); background: #e0e7ff; color: #4338ca; }
+.theme-switch:active .theme-switch-thumb { width: 30px; }
+.theme-switch.is-dark:active .theme-switch-thumb { transform: translateX(28px) rotate(360deg); }
+
+.theme-switch-thumb-icon { position: absolute; width: 16px; height: 16px; transition: opacity 0.25s ease, transform 0.45s ease; }
+.theme-switch-thumb-icon.sun { opacity: 1; transform: scale(1) rotate(0); }
+.theme-switch-thumb-icon.moon { opacity: 0; transform: scale(0.4) rotate(-90deg); }
+.theme-switch.is-dark .theme-switch-thumb-icon.sun { opacity: 0; transform: scale(0.4) rotate(90deg); }
+.theme-switch.is-dark .theme-switch-thumb-icon.moon { opacity: 1; transform: scale(1) rotate(0); }
+
+/* While the theme flips, every colour fades instead of snapping */
+.theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, fill 0.4s ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-switch, .theme-switch-thumb, .theme-switch-thumb-icon, .theme-switch-icon, .theme-switch-stars { transition: none; animation: none !important; }
+  .theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after { transition: none !important; }
+}
+
+/* Supplier recommendation (New PO) */
+.po-supplier-hint{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding:8px 10px;border-radius:10px;background:#F5F3FF;border:1px solid #EDE9FE;font-size:12.5px;color:#4C1D95}
+.po-supplier-hint-star{color:#F59E0B}
+.po-supplier-hint-text{flex:1;min-width:0}
+.po-supplier-hint-use{border:0;border-radius:8px;padding:4px 12px;background:#6D28D9;color:#fff;font-weight:600;font-size:12px;cursor:pointer}
+.po-supplier-hint-use:hover{background:#7C3AED}
+.po-line-compare-btn{display:block;margin-top:2px;padding:0;border:0;background:none;color:#6D28D9;font-size:11.5px;font-weight:600;cursor:pointer}
+.po-line-compare-btn:hover{text-decoration:underline}
+.theme-dark .po-supplier-hint{background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.3);color:#DDD6FE}
+.theme-dark .po-line-compare-btn{color:#A78BFA}

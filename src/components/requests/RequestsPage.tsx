@@ -8,6 +8,7 @@ import { commitRequest, fetchRequests, type LiveRequest } from "@/features/reque
 import { fetchWarehouses } from "@/features/live/lookups";
 import Can from "@/components/common/Can";
 
+import { markSeen } from "@/features/seen/seen-store";
 const tabs = ["All", "Pending", "Approved", "Rejected"] as const;
 type RequestTab = (typeof tabs)[number];
 
@@ -30,7 +31,10 @@ export default function RequestsPage() {
     setLoading(true);
     setDataError("");
     try {
-      setRequests(await fetchRequests());
+      const rows = await fetchRequests();
+      setRequests(rows);
+      // Having the list in front of you counts as seeing the requests waiting for you.
+      markSeen("requests", rows.filter((r) => r.status === "Pending" && r.canAct).map((r) => r.id));
       fetchWarehouses()
         .then((list) => setWarehouses(["All Warehouses", ...list.map((w) => w.name)]))
         .catch(() => undefined);

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchCustomerOrders } from "./customer-orders.api";
 import { CustomerOrderSummary } from "./customer-orders.types";
+import { useSeenIds } from "@/features/seen/seen-store";
 
 /** Ids already seen, kept across page changes so a banner shows only once per order. */
 let seenIds: Set<string> | null = null;
@@ -18,6 +19,7 @@ export function usePendingOrders(onNew?: (fresh: CustomerOrderSummary[]) => void
   const [orders, setOrders] = useState<CustomerOrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const seen = useSeenIds("orders");
   const onNewRef = useRef(onNew);
   onNewRef.current = onNew;
 
@@ -46,5 +48,8 @@ export function usePendingOrders(onNew?: (fresh: CustomerOrderSummary[]) => void
     return () => clearInterval(timer);
   }, [refresh]);
 
-  return { orders, count: orders.length, loading, error, refresh };
+  /** Waiting for review and not looked at yet: this is what the sidebar badge shows. */
+  const unseenCount = orders.filter((o) => !seen.has(o.id)).length;
+
+  return { orders, count: orders.length, unseenCount, loading, error, refresh };
 }

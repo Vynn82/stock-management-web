@@ -10,6 +10,7 @@ import { fetchCustomerOrders, errorText } from "@/features/customer-orders/custo
 import { CoStatus, CustomerOrderSummary } from "@/features/customer-orders/customer-orders.types";
 import { Card, PaidPill, StatusPill, dateTime, money, mutedText, pageTitle, pageWrap, STATUS_META } from "./co-ui";
 
+import { markSeen } from "@/features/seen/seen-store";
 type Filter = "ALL" | CoStatus;
 
 const FILTERS: { value: Filter; label: string }[] = [
@@ -36,7 +37,10 @@ export default function CustomerOrdersPage() {
     setLoading(true);
     setError(null);
     try {
-      setOrders(await fetchCustomerOrders());
+      const rows = await fetchCustomerOrders();
+      setOrders(rows);
+      // Having the list in front of you counts as seeing the orders waiting for review.
+      markSeen("orders", rows.filter((o) => o.status === "PENDING_REVIEW").map((o) => o.id));
     } catch (e) {
       setError(errorText(e));
     } finally {

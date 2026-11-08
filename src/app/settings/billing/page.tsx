@@ -1,5 +1,6 @@
-import SettingsPage from "@/components/settings/SettingsPage";
+import { redirect } from "next/navigation";
 
+// Billing was removed from the app; old links go to Settings.
 export default function BillingSettingsPage() {
-  return <SettingsPage initialTab="billing" />;
+  redirect("/settings");
 }

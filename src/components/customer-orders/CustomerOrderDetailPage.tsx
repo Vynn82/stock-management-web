@@ -25,6 +25,7 @@ import {
 import { CoItem, CoStatus, CustomerOrderDetail } from "@/features/customer-orders/customer-orders.types";
 import { Card, PaidPill, StatusPill, dateTime, money, mutedText, pageTitle, pageWrap, qty } from "./co-ui";
 
+import { markSeen } from "@/features/seen/seen-store";
 const MAX_PROOF_BYTES = 5 * 1024 * 1024;
 const PROOF_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -77,6 +78,7 @@ export default function CustomerOrderDetailPage({ orderId }: { orderId: string }
     setError(null);
     try {
       setOrder(await fetchCustomerOrder(orderId));
+      markSeen("orders", [orderId]);
     } catch (e) {
       setError(errorText(e));
     } finally {

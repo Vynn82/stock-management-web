@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Alert, Button, Empty, Skeleton } from "antd";
 import { ArrowRightOutlined, ClockCircleOutlined, DollarOutlined, ReloadOutlined, ShoppingOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { usePendingOrders } from "@/features/customer-orders/use-pending-orders";
+import { markSeen } from "@/features/seen/seen-store";
 import type { CustomerOrderSummary } from "@/features/customer-orders/customer-orders.types";
 import { PaidPill, money } from "./co-ui";
 
@@ -41,6 +42,11 @@ function dayLabel(iso: string | null): string {
  */
 export default function NotificationsPage() {
   const { orders, loading, error, refresh } = usePendingOrders();
+
+  // Opening this page counts as seeing every order listed here.
+  useEffect(() => {
+    markSeen("orders", orders.map((o) => o.id));
+  }, [orders]);
 
   const groups = useMemo(() => {
     const map = new Map<string, CustomerOrderSummary[]>();

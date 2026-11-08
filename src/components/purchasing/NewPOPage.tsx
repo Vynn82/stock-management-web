@@ -19,11 +19,12 @@ import {
   updatePo,
   fetchApprovers,
   fetchOrderableProducts,
+  fetchSupplierHistory,
   type Approver,
   type OrderableProduct,
 } from "@/features/purchasing/purchasing-live";
 import { formatCurrency } from "./purchasing-data";
-import { ImportModal, ReorderModal, SupplierCompareModal } from "./PoTools";
+import { ImportModal, RatingText, ReorderModal, SupplierCompareModal, recommendedSupplier } from "./PoTools";
 import type { ImportRow, ReorderItem, SupplierOption } from "@/features/purchasing/purchasing-live";
 import SearchSelect from "@/components/ui/SearchSelect";
 
@@ -75,6 +76,8 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
   const [showReorder, setShowReorder] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [compareFor, setCompareFor] = useState<OrderableProduct | null>(null);
+  const [compareLine, setCompareLine] = useState<string | null>(null);
+  const [recommended, setRecommended] = useState<{ supplier: SupplierOption; label: string } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -240,9 +243,37 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
     mergeLines(lines);
   };
 
+  // Suggest a supplier from the history of the first catalogue product on the order.
+  const hintKey = lineItems.find((l) => products.find((p) => p.key === l.key)?.productId)?.key ?? "";
+  useEffect(() => {
+    const prod = products.find((p) => p.key === hintKey);
+    if (!prod?.productId) {
+      setRecommended(null);
+      return;
+    }
+    let live = true;
+    fetchSupplierHistory(prod.productId)
+      .then((rows) => {
+        if (!live) return;
+        const best = recommendedSupplier(rows);
+        setRecommended(best ? { supplier: best, label: prod.label } : null);
+      })
+      .catch(() => live && setRecommended(null));
+    return () => {
+      live = false;
+    };
+  }, [hintKey, products]);
+
   const pickSupplier = (s: SupplierOption) => {
     if (suppliers.some((x) => x.code === s.code)) setSupplierCode(s.code);
-    setNewUnitCost(s.lastPrice);
+    // Price goes to the line being added, or to the line that was compared.
+    if (isAddingItem && !compareLine) setNewUnitCost(s.lastPrice);
+    if (compareLine) {
+      setLineItems((cur) =>
+        cur.map((l) => (l.key === compareLine ? { ...l, unitCost: s.lastPrice, lineTotal: l.qty * s.lastPrice } : l)),
+      );
+    }
+    setCompareLine(null);
     setCompareFor(null);
   };
 
@@ -331,6 +362,27 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
                     </SearchSelect>
                     <DownOutlined className="po-new-select-chevron" />
                   </div>
+                  {recommended && (
+                    <div className="po-supplier-hint">
+                      <span className="po-supplier-hint-star">★</span>
+                      <span className="po-supplier-hint-text">
+                        {recommended.supplier.code === supplierCode ? (
+                          <>Recommended supplier for {recommended.label}</>
+                        ) : (
+                          <>
+                            Recommended for {recommended.label}: <strong>{recommended.supplier.name}</strong>
+                          </>
+                        )}{" "}
+                        · <RatingText o={recommended.supplier} />
+                        {recommended.supplier.fillRate !== null && <> · {recommended.supplier.fillRate}% delivered</>}
+                      </span>
+                      {recommended.supplier.code !== supplierCode && suppliers.some((x) => x.code === recommended.supplier.code) && (
+                        <button type="button" className="po-supplier-hint-use" onClick={() => setSupplierCode(recommended.supplier.code)}>
+                          Use
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Warehouse the goods are delivered to */}
@@ -404,7 +456,24 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
                   <tbody>
                     {lineItems.map((item, idx) => (
                       <tr key={item.key}>
-                        <td className="po-line-product">{item.label}</td>
+                        <td className="po-line-product">
+                          {item.label}
+                          {products.find((p) => p.key === item.key)?.productId && (
+                            <button
+                              type="button"
+                              className="po-line-compare-btn"
+                              onClick={() => {
+                                const prod = products.find((p) => p.key === item.key);
+                                if (prod) {
+                                  setCompareLine(item.key);
+                                  setCompareFor(prod);
+                                }
+                              }}
+                            >
+                              Compare suppliers
+                            </button>
+                          )}
+                        </td>
                         <td className="po-line-qty">{item.qty}</td>
                         <td className="po-line-unit-cost">
                           {formatCurrency(item.unitCost)}
@@ -531,7 +600,10 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
               <SupplierCompareModal
                 productId={compareFor?.productId ?? null}
                 productLabel={compareFor?.label ?? ""}
-                onClose={() => setCompareFor(null)}
+                onClose={() => {
+                  setCompareFor(null);
+                  setCompareLine(null);
+                }}
                 onPick={pickSupplier}
               />
 
