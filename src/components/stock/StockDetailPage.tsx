@@ -329,7 +329,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
                                 : "transfer"
                             }`}
                           >
-                            {tx.type}
+                            {tx.type === "In" ? "Stock In" : tx.type === "Out" ? "Stock Out" : tx.type}
                           </span>
                         </td>
                         <td
@@ -924,7 +924,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
                       : "transfer"
                   }`}
                 >
-                  {tx.type}
+                  {tx.type === "In" ? "Stock In" : tx.type === "Out" ? "Stock Out" : tx.type}
                 </span>
                 <span style={{ fontSize: 11, color: "#9ca3af" }}>{tx.date}</span>
               </div>

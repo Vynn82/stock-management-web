@@ -30,7 +30,7 @@ function StockTransactionsPageInner() {
         const matchesProduct = tx.productName.toLowerCase().includes(q);
         const matchesWarehouse = tx.warehouse.toLowerCase().includes(q);
         const matchesUser = tx.performedBy.toLowerCase().includes(q);
-        const matchesType = tx.type.toLowerCase().includes(q);
+        const matchesType = (tx.type === "In" ? "stock in" : tx.type === "Out" ? "stock out" : tx.type.toLowerCase()).includes(q);
         if (!matchesProduct && !matchesWarehouse && !matchesUser && !matchesType) {
           return false;
         }
@@ -47,7 +47,7 @@ function StockTransactionsPageInner() {
       const rows = filteredTransactions.map((tx) => [
         `"${tx.dateTime}"`,
         `"${tx.productName}"`,
-        `"${tx.type}"`,
+        `"${tx.type === "In" ? "Stock In" : tx.type === "Out" ? "Stock Out" : tx.type}"`,
         tx.qty > 0 ? `+${tx.qty}` : `${tx.qty}`,
         `"${tx.warehouse}"`,
         `"${tx.performedBy}"`,
@@ -148,8 +148,8 @@ function StockTransactionsPageInner() {
             onChange={(e) => setSelectedType(e.target.value)}
           >
             <option value="All">All Types</option>
-            <option value="In">In</option>
-            <option value="Out">Out</option>
+            <option value="In">Stock In</option>
+            <option value="Out">Stock Out</option>
             <option value="Transfer">Transfer</option>
             <option value="Adjustment">Adjustment</option>
           </select>
@@ -264,7 +264,7 @@ function StockTransactionsPageInner() {
                       {/* TYPE (Pill Badge) */}
                       <td>
                         <span className={`stock-tx-pill ${typeClass}`}>
-                          {tx.type}
+                          {tx.type === "In" ? "Stock In" : tx.type === "Out" ? "Stock Out" : tx.type}
                         </span>
                       </td>
 

@@ -112,7 +112,7 @@ export default function TransactionReportPage() {
       "DATE,PRODUCT,TYPE,QTY,WAREHOUSE,PERFORMED BY",
       ...filteredRows.map(
         (r) =>
-          `"${r.date}","${r.product}","${r.type}","${r.qty}","${r.warehouse}","${r.performedBy}"`
+          `"${r.date}","${r.product}","${r.type === "In" ? "Stock In" : r.type === "Out" ? "Stock Out" : r.type}","${r.qty}","${r.warehouse}","${r.performedBy}"`
       ),
       "",
       "DAILY MOVEMENT SUMMARY (IN VS OUT)",
@@ -240,7 +240,7 @@ export default function TransactionReportPage() {
             className={`tx-rep-filter-pill ${selectedType === type ? "active" : ""}`}
             onClick={() => setSelectedType(type)}
           >
-            {type}
+            {type === "In" ? "Stock In" : type === "Out" ? "Stock Out" : type}
           </button>
         ))}
       </div>
@@ -249,15 +249,15 @@ export default function TransactionReportPage() {
       {/* Card 1: Stock Movement — In vs Out Chart */}
       <div className="tx-rep-chart-card">
         <div className="tx-rep-chart-header">
-          <h2 className="tx-rep-chart-title">Stock movement — In vs Out</h2>
+          <h2 className="tx-rep-chart-title">Stock movement — Stock In vs Stock Out</h2>
           <div className="tx-rep-chart-legend">
             <span className="tx-rep-legend-item">
               <span className="tx-rep-legend-dot in" />
-              <span>In</span>
+              <span>Stock In</span>
             </span>
             <span className="tx-rep-legend-item">
               <span className="tx-rep-legend-dot out" />
-              <span>Out</span>
+              <span>Stock Out</span>
             </span>
           </div>
         </div>
@@ -351,7 +351,7 @@ export default function TransactionReportPage() {
                             : "tag-adjustment"
                         }`}
                       >
-                        {row.type}
+                        {row.type === "In" ? "Stock In" : row.type === "Out" ? "Stock Out" : row.type}
                       </span>
                     </td>
                     <td className="col-qty">
