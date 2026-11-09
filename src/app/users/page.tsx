@@ -70,7 +70,7 @@ export default function UsersPage() {
   }, [load]);
 
   const roleOptions = useMemo(() => {
-    const base = ["Admin", "Manager", "Staff"];
+    const base = ["Super Admin", "Admin", "Manager", "Staff"];
     const extra = Array.from(new Set(members.map((member) => member.role))).filter((role) => !base.includes(role));
     return [...base, ...extra];
   }, [members]);
