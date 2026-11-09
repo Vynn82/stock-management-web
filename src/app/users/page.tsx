@@ -98,11 +98,17 @@ export default function UsersPage() {
 
   const filteredMembers = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-    return members.filter((member) => {
-      const matchesSearch = !normalizedSearch || `${member.name} ${member.staffId} ${member.email}`.toLowerCase().includes(normalizedSearch);
-      return matchesSearch && (roleFilter === "all" || member.role === roleFilter);
-    });
-  }, [members, roleFilter, search]);
+    const rank = (role: string) => {
+      const index = roleOptions.indexOf(role);
+      return index === -1 ? roleOptions.length : index;
+    };
+    return members
+      .filter((member) => {
+        const matchesSearch = !normalizedSearch || `${member.name} ${member.staffId} ${member.email}`.toLowerCase().includes(normalizedSearch);
+        return matchesSearch && (roleFilter === "all" || member.role === roleFilter);
+      })
+      .sort((a, b) => rank(a.role) - rank(b.role));
+  }, [members, roleFilter, search, roleOptions]);
 
   return <div className="team-members-page">
     {contextHolder}
