@@ -6,6 +6,7 @@ import {
   clearStoredAuth,
   StoredAuthData,
   mapCurrentUserToUser,
+  ensureValidToken,
 } from "@/lib/auth/session";
 import { getMe } from "@/features/auth/auth.api";
 import { fetchUserMenus } from "@/features/menu/menu.api";
@@ -24,6 +25,29 @@ export interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => {
   const initial = typeof window !== "undefined" ? getStoredAuth() : null;
   const token = initial?.accessToken || initial?.token || null;
+
+  // A saved login whose access token has expired is renewed quietly with the
+  // refresh token; if that fails the person is signed out.
+  if (typeof window !== "undefined" && token && initial?.refreshToken) {
+    void ensureValidToken().then((fresh) => {
+      if (!fresh) {
+        clearStoredAuth();
+        useAuthStore.setState({
+          user: null,
+          token: null,
+          refreshToken: null,
+          isAuthenticated: false,
+        });
+        return;
+      }
+      const latest = getStoredAuth();
+      useAuthStore.setState({
+        token: fresh,
+        refreshToken: latest?.refreshToken || null,
+        isAuthenticated: true,
+      });
+    });
+  }
 
   return {
     user: (initial?.user as User) || null,

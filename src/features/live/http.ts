@@ -1,6 +1,6 @@
 import axios, { AxiosRequestConfig } from "axios";
 import config from "@/lib/api/config";
-import { getStoredAuth, clearStoredAuth } from "@/lib/auth/session";
+import { getStoredAuth, clearStoredAuth, ensureValidToken, refreshSession } from "@/lib/auth/session";
 
 /**
  * HTTP helpers for the pages that talk to the real API.
@@ -24,8 +24,8 @@ function messageOf(data: unknown): string {
   return typeof raw === "string" ? raw : "";
 }
 
-async function call<T>(cfg: AxiosRequestConfig): Promise<T> {
-  const token = getStoredAuth()?.accessToken || getStoredAuth()?.token;
+async function call<T>(cfg: AxiosRequestConfig, retried = false): Promise<T> {
+  const token = (await ensureValidToken()) || getStoredAuth()?.accessToken || getStoredAuth()?.token;
   const isForm = typeof FormData !== "undefined" && cfg.data instanceof FormData;
   try {
     const res = await axios.request<T>({
@@ -47,6 +47,10 @@ async function call<T>(cfg: AxiosRequestConfig): Promise<T> {
     }
     const { status, data } = e.response;
     const message = messageOf(data);
+    if (status === 401 && typeof window !== "undefined" && !retried) {
+      // The token may simply have expired: renew it once and replay the call.
+      if (await refreshSession()) return call<T>(cfg, true);
+    }
     if (status === 401 && typeof window !== "undefined") {
       clearStoredAuth();
       window.location.assign("/auth/login?expired=1");

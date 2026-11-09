@@ -1,7 +1,7 @@
 import axios, { Method } from "axios";
 import config from "./config";
 import { getStatus, setStatus } from "@/store/statusStore";
-import { AUTH_STORAGE_KEY } from "@/lib/constants";
+import { readRawAuth } from "@/lib/auth/session";
 
 export interface RequestErrorDetails {
   help: string;
@@ -35,11 +35,11 @@ export const request = async <T = any>(
       };
     }
 
-    // Attach Bearer token from sessionStorage if available
+    // Attach Bearer token from storage if available
     const authHeader: Record<string, string> = {};
     if (typeof window !== "undefined") {
       try {
-        const stored = sessionStorage.getItem(AUTH_STORAGE_KEY);
+        const stored = readRawAuth();
         if (stored) {
           const parsed = JSON.parse(stored);
           const token = parsed.accessToken || parsed.token;
@@ -48,7 +48,7 @@ export const request = async <T = any>(
           }
         }
       } catch {
-        // Ignore sessionStorage read errors
+        // Ignore storage read errors
       }
     }
 

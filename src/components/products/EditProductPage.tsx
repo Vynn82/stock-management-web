@@ -49,6 +49,17 @@ const lossWarning = (costPath: (string | number)[]): Rule => ({ getFieldValue })
   },
 });
 
+/** Two variants of one product cannot share a name, SKU or barcode. */
+const uniqueVariant = (field: "name" | "sku" | "barcode", index: number, label: string): Rule => ({ getFieldValue }) => ({
+  validator(_, value) {
+    const text = String(value ?? "").trim().toLowerCase();
+    if (!text) return Promise.resolve();
+    const list = (getFieldValue("variants") ?? []) as Record<string, unknown>[];
+    const clash = list.findIndex((x, i) => i !== index && String(x?.[field] ?? "").trim().toLowerCase() === text);
+    return clash >= 0 ? Promise.reject(new Error(`Same ${label} as another variant`)) : Promise.resolve();
+  },
+});
+
 const opts = (list: LookupOption[]) => list.map((o) => ({ value: o.code, label: o.name }));
 
 export default function EditProductPage({ productId }: { productId: string }) {
@@ -210,17 +221,17 @@ export default function EditProductPage({ productId }: { productId: string }) {
 
           <div className="panel-card" style={{ padding: 20, borderRadius: 16, marginBottom: 16 }}>
             <h2 style={{ margin: "0 0 16px", fontSize: 16 }}>Basic information</h2>
-            <Form.Item name="name" label="Product name" rules={[{ required: true, message: "Product name is required" }, { max: 200 }]}>
+            <Form.Item name="name" label="Product name" rules={[{ required: true, whitespace: true, message: "Product name is required" }, { max: 200, message: "Max 200 characters" }]}>
               <Input />
             </Form.Item>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0 16px" }}>
-              <Form.Item name="sku" label="SKU" rules={[{ required: true, message: "SKU is required" }]}>
+              <Form.Item name="sku" label="SKU" rules={[{ required: true, whitespace: true, message: "SKU is required" }, { max: 100, message: "Max 100 characters" }]}>
                 <Input />
               </Form.Item>
-              <Form.Item name="barcode" label="Barcode" extra="Leave empty to generate a new one.">
+              <Form.Item name="barcode" label="Barcode" extra="Leave empty to generate a new one." rules={[{ max: 100, message: "Max 100 characters" }]}>
                 <Input />
               </Form.Item>
-              <Form.Item name="unit" label="Unit" rules={[{ required: true, message: "Unit is required" }]}>
+              <Form.Item name="unit" label="Unit" rules={[{ required: true, whitespace: true, message: "Unit is required" }, { max: 30, message: "Max 30 characters" }]}>
                 <Input />
               </Form.Item>
               <Form.Item name="categoryCode" label="Category" rules={[{ required: true, message: "Choose a category" }]}>
@@ -252,10 +263,25 @@ export default function EditProductPage({ productId }: { productId: string }) {
               >
                 <InputNumber min={0} max={999999999.99} precision={2} step={0.01} style={{ width: "100%" }} placeholder="0.00" />
               </Form.Item>
-              <Form.Item name="minimumStock" label="Minimum stock" rules={[{ required: true, message: "Required" }]}>
+              <Form.Item name="minimumStock" label="Minimum stock" rules={[{ required: true, message: "Required" }, { type: "number", min: 0, message: "Cannot be negative" }]}>
                 <InputNumber min={0} style={{ width: "100%" }} />
               </Form.Item>
-              <Form.Item name="maximumStock" label="Maximum stock">
+              <Form.Item
+                name="maximumStock"
+                label="Maximum stock"
+                dependencies={["minimumStock"]}
+                rules={[
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      const min = getFieldValue("minimumStock");
+                      if (typeof value === "number" && typeof min === "number" && value < min) {
+                        return Promise.reject(new Error("Cannot be lower than the minimum stock"));
+                      }
+                      return Promise.resolve();
+                    },
+                  }),
+                ]}
+              >
                 <InputNumber min={0} style={{ width: "100%" }} placeholder="No limit" />
               </Form.Item>
             </div>
@@ -286,13 +312,13 @@ export default function EditProductPage({ productId }: { productId: string }) {
                         );
                       })()}
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0 16px" }}>
-                        <Form.Item name={[f.name, "name"]} label="Name" rules={[{ required: true, message: "Required" }]}>
+                        <Form.Item name={[f.name, "name"]} label="Name" rules={[{ required: true, whitespace: true, message: "Required" }, uniqueVariant("name", f.name, "name")]}>
                           <Input />
                         </Form.Item>
-                        <Form.Item name={[f.name, "sku"]} label="SKU" rules={[{ required: true, message: "Required" }]}>
+                        <Form.Item name={[f.name, "sku"]} label="SKU" rules={[{ required: true, whitespace: true, message: "Required" }, { max: 100, message: "Max 100 characters" }, uniqueVariant("sku", f.name, "SKU")]}>
                           <Input />
                         </Form.Item>
-                        <Form.Item name={[f.name, "barcode"]} label="Barcode">
+                        <Form.Item name={[f.name, "barcode"]} label="Barcode" rules={[{ max: 100, message: "Max 100 characters" }, uniqueVariant("barcode", f.name, "barcode")]}>
                           <Input />
                         </Form.Item>
                         <Form.Item name={[f.name, "costPrice"]} label="Cost ($)" rules={priceRules("Cost price")}>

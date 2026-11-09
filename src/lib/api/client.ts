@@ -1,5 +1,5 @@
 import axios from "axios";
-import { AUTH_STORAGE_KEY } from "@/lib/constants";
+import { readRawAuth } from "@/lib/auth/session";
 import config from "./config";
 export { request } from "./request";
 
@@ -16,7 +16,7 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((configReq) => {
   if (typeof window !== "undefined") {
     try {
-      const stored = sessionStorage.getItem(AUTH_STORAGE_KEY);
+      const stored = readRawAuth();
       if (stored) {
         const parsed = JSON.parse(stored);
         const token = parsed.accessToken || parsed.token;
@@ -25,7 +25,7 @@ apiClient.interceptors.request.use((configReq) => {
         }
       }
     } catch {
-      // Ignore sessionStorage read errors
+      // Ignore storage read errors
     }
   }
   return configReq;

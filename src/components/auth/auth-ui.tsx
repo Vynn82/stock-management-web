@@ -1,6 +1,7 @@
 "use client";
 
 import StockFlowLockup from "@/components/common/StockFlowLockup";
+import StockFlowLogo from "@/components/common/StockFlowLogo";
 import Link from "next/link";
 import { ReactNode, useId, useState } from "react";
 
@@ -62,23 +63,6 @@ export const InfoIcon = () => (
     <path d="M12 11v5M12 8v.1" />
   </svg>
 );
-const LayersIcon = () => (
-  <svg {...base}>
-    <path d="m12 4 8.5 4.5L12 13 3.5 8.5 12 4Z" />
-    <path d="m3.5 12.5 8.5 4.5 8.5-4.5M3.5 16.5 12 21l8.5-4.5" />
-  </svg>
-);
-const PulseIcon = () => (
-  <svg {...base}>
-    <path d="M3 12h4l2.5-6 4 12 2.5-6H21" />
-  </svg>
-);
-const ShieldIcon = () => (
-  <svg {...base}>
-    <path d="M12 3.5 19 6v5.5c0 4.2-2.8 7.2-7 9-4.2-1.8-7-4.8-7-9V6l7-2.5Z" />
-    <path d="m9 12 2.2 2.2L15.5 10" />
-  </svg>
-);
 
 /* ---------- layout ---------- */
 export function AuthBrand({ light }: { light?: boolean }) {
@@ -119,32 +103,42 @@ export function AuthCard({
   );
 }
 
-/** Split sign-in screen with the brand panel. */
+/** Full-screen split sign-in: brand greeting on the left, the form on the right. */
 export function AuthSplit({ children }: { children: ReactNode }) {
-  const points = [
-    { icon: <LayersIcon />, title: "Every warehouse in one place", text: "Stock levels across all locations, always current." },
-    { icon: <PulseIcon />, title: "Live stock movement", text: "In, out, transfers and adjustments as they happen." },
-    { icon: <ShieldIcon />, title: "Approvals with a paper trail", text: "Requests are reviewed and recorded by role." },
-  ];
   return (
-    <main className="af-screen">
-      <section className="af-card af-card-split" aria-label="Sign in to StockFlow">
-        <aside className="af-promo">
-          <AuthBrand light />
-          <h1>See every product, every warehouse, in real time.</h1>
-          <ul>
-            {points.map((p) => (
-              <li key={p.title}>
-                <span className="af-promo-icon">{p.icon}</span>
-                <span>
-                  <strong>{p.title}</strong>
-                  <small>{p.text}</small>
-                </span>
-              </li>
+    <main className="af-screen af-screen-split">
+      <section className="sl" aria-label="Sign in to StockFlow">
+        <aside className="sl-promo">
+          <svg className="sl-arcs" viewBox="0 0 800 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <path
+                key={i}
+                d={`M${-80 + i * 70} 960 Q${180 + i * 70} ${560 - i * 30} ${470 + i * 52} ${60 + i * 64}`}
+                fill="none"
+                stroke="rgba(255,255,255,.13)"
+                strokeWidth="1.2"
+              />
             ))}
-          </ul>
+          </svg>
+          <div className="sl-promo-mark">
+            <StockFlowLogo size={64} />
+          </div>
+          <div className="sl-promo-body">
+            <h1>
+              Hello
+              <br />
+              StockFlow!
+            </h1>
+            <p>Know what you have, where it is and what to reorder. Track every product across every warehouse in real time.</p>
+          </div>
+          <small className="sl-promo-foot">© {new Date().getFullYear()} StockFlow. All rights reserved.</small>
         </aside>
-        <div className="af-panel">{children}</div>
+        <div className="sl-panel">
+          <Link className="sl-brand" href="/auth/login" aria-label="StockFlow">
+            <StockFlowLockup size={52} />
+          </Link>
+          <div className="sl-form">{children}</div>
+        </div>
       </section>
     </main>
   );

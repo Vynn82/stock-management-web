@@ -1,3 +1,5 @@
+import axios from "axios";
+import config from "@/lib/api/config";
 import { AUTH_STORAGE_KEY } from "@/lib/constants";
 import { User, CurrentUserResponse } from "@/types/auth";
 
@@ -66,15 +68,61 @@ export function decodeJwt<T = JwtPayload>(token: string): T | null {
   }
 }
 
-export function getStoredAuth(): StoredAuthData | null {
+/**
+ * Raw persisted auth JSON. Lives in localStorage so the login survives closing
+ * the tab/browser (like the mobile app). Older sessions saved in
+ * sessionStorage are migrated on first read.
+ */
+export function readRawAuth(): string | null {
   if (typeof window === "undefined") return null;
-
   try {
-    const raw = sessionStorage.getItem(AUTH_STORAGE_KEY);
+    const persisted = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (persisted) return persisted;
+  } catch {
+    // localStorage unavailable (private mode etc.) - fall through.
+  }
+  try {
+    const legacy = sessionStorage.getItem(AUTH_STORAGE_KEY);
+    if (legacy) {
+      writeRawAuth(legacy);
+      sessionStorage.removeItem(AUTH_STORAGE_KEY);
+      return legacy;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+export function writeRawAuth(raw: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(AUTH_STORAGE_KEY, raw);
+  } catch {
+    // Fall back to the tab-only session if persistent storage is blocked.
+    try {
+      sessionStorage.setItem(AUTH_STORAGE_KEY, raw);
+    } catch {
+      // Ignore storage errors.
+    }
+  }
+}
+
+export function getStoredAuth(): StoredAuthData | null {
+  try {
+    const raw = readRawAuth();
     return raw ? (JSON.parse(raw) as StoredAuthData) : null;
   } catch {
     return null;
   }
+}
+
+/** True when the access token's `exp` claim is in the past. */
+export function isTokenExpired(token?: string | null): boolean {
+  if (!token) return true;
+  const exp = decodeJwt<JwtPayload>(token)?.exp;
+  if (!exp) return false; // opaque/mock token: let the server decide
+  return exp * 1000 <= Date.now();
 }
 
 export function setStoredAuth(data: StoredAuthData): void {
@@ -98,7 +146,7 @@ export function setStoredAuth(data: StoredAuthData): void {
       }
     }
 
-    sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
+    writeRawAuth(JSON.stringify(data));
   } catch {
     // Ignore storage errors.
   }
@@ -108,6 +156,7 @@ export function clearStoredAuth(): void {
   if (typeof window === "undefined") return;
 
   try {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
     sessionStorage.removeItem(AUTH_STORAGE_KEY);
     sessionStorage.removeItem(TEMP_PASSWORD_KEY);
   } catch {
@@ -138,4 +187,57 @@ export function clearTempPassword(): void {
   } catch {
     // Ignore storage errors.
   }
+}
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+/**
+ * Trades the stored refresh token for a fresh access token (the API rotates
+ * the refresh token too, so only one call may run at a time).
+ * Returns the new access token, or null when the session can't be renewed.
+ */
+export function refreshSession(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  const stored = getStoredAuth();
+  const refreshToken = stored?.refreshToken;
+  if (!stored || !refreshToken) return Promise.resolve(null);
+
+  refreshInFlight = axios
+    .post<{ accessToken: string; refreshToken?: string; mustChangePassword?: boolean }>(
+      `${config.BASE_URL}auth/refresh`,
+      { refreshToken },
+      { timeout: 15000 },
+    )
+    .then((res) => {
+      const next = res.data;
+      if (!next?.accessToken) return null;
+      // Re-read: another tab/call may have updated the user meanwhile.
+      const current = getStoredAuth() ?? stored;
+      setStoredAuth({
+        ...current,
+        accessToken: next.accessToken,
+        token: undefined,
+        refreshToken: next.refreshToken || refreshToken,
+      });
+      return next.accessToken;
+    })
+    .catch(() => null)
+    .finally(() => {
+      refreshInFlight = null;
+    });
+
+  return refreshInFlight;
+}
+
+/**
+ * Returns a usable access token, silently renewing it when it has expired.
+ * Null means the person has to sign in again.
+ */
+export async function ensureValidToken(): Promise<string | null> {
+  const stored = getStoredAuth();
+  const token = stored?.accessToken || stored?.token || null;
+  if (!token) return null;
+  if (!isTokenExpired(token)) return token;
+  return refreshSession();
 }

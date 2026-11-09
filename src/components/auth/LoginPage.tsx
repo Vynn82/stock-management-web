@@ -1,11 +1,11 @@
 "use client";
 
-import { FormEvent, Suspense, useState } from "react";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthError, signIn } from "@/features/auth/auth-flow.api";
 import { getMe } from "@/features/auth/auth.api";
-import { mapCurrentUserToUser, setTempPassword, clearTempPassword } from "@/lib/auth/session";
+import { mapCurrentUserToUser, setTempPassword, clearTempPassword, getStoredAuth } from "@/lib/auth/session";
 import { useAuth } from "@/hooks/use-auth";
 import { Alert, AuthSplit, Field, PasswordField, SubmitButton, UserIcon } from "./auth-ui";
 
@@ -20,6 +20,14 @@ function LoginForm() {
 
   const justReset = params.get("reset") === "1";
   const expired = params.get("expired") === "1";
+
+  // Already signed in (saved session)? Skip the form and open the dashboard.
+  useEffect(() => {
+    const saved = getStoredAuth();
+    if ((saved?.accessToken || saved?.token) && !saved.mustChangePassword && !expired) {
+      router.replace("/dashboard");
+    }
+  }, [router, expired]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,8 +72,8 @@ function LoginForm() {
   return (
     <>
       <header className="af-head is-left">
-        <h2>Welcome back</h2>
-        <p>Sign in with your Staff ID to manage inventory.</p>
+        <h2>Welcome back!</h2>
+        <p>Sign in with your Staff ID to manage your inventory.</p>
       </header>
 
       {justReset && !error && <Alert tone="success">Password updated. Sign in with your new password.</Alert>}
@@ -116,14 +124,13 @@ function LoginForm() {
           }}
           disabled={loading}
           aria-invalid={error?.kind === "invalid" || undefined}
-          right={
-            <Link className="af-link" href="/auth/forgot-password">
-              Forgot password?
-            </Link>
-          }
         />
         <SubmitButton loading={loading}>{loading ? "Signing in…" : "Sign in"}</SubmitButton>
       </form>
+
+      <p className="sl-forgot">
+        Forgot your password? <Link href="/auth/forgot-password">Reset it</Link>
+      </p>
 
       <p className="af-note">
         Accounts are created by your administrator. Can&apos;t sign in? Contact them to get access or a new temporary password.

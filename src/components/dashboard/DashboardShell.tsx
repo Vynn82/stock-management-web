@@ -60,8 +60,12 @@ export default function DashboardShell({
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useTheme();
-  const { user } = useAuth();
+  const { user, token, logout } = useAuth();
   const roleName = user?.role || user?.roles?.[0];
+  // No saved login (never signed in, or the session could not be renewed): go to sign-in.
+  useEffect(() => {
+    if (!token) router.replace("/auth/login");
+  }, [token, router]);
   const access = checkAccess(user, pathname);
   // Clicking a menu the role can't use shows a popup instead of opening the screen.
   const lockedOf = (href: string) => {
@@ -335,7 +339,10 @@ export default function DashboardShell({
               <button
                 className="signout-confirm"
                 type="button"
-                onClick={() => router.push("/auth/login")}
+                onClick={() => {
+                  logout();
+                  router.push("/auth/login");
+                }}
               >
                 Sign out
               </button>

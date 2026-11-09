@@ -6,7 +6,7 @@ import {
   SetupPasswordPayload,
 } from "./auth.types";
 import { CurrentUserResponse } from "@/types/auth";
-import { AUTH_STORAGE_KEY } from "@/lib/constants";
+import { readRawAuth, writeRawAuth } from "@/lib/auth/session";
 
 export const MOCK_ACCESS_TOKEN = "mock-jwt-token-for-testing-frontend";
 
@@ -117,14 +117,14 @@ export const MOCK_CURRENT_USER: CurrentUserResponse = {
 function updateStoredSessionPasswordStatus(mustChange: boolean) {
   if (typeof window === "undefined") return;
   try {
-    const raw = sessionStorage.getItem(AUTH_STORAGE_KEY);
+    const raw = readRawAuth();
     if (raw) {
       const parsed = JSON.parse(raw);
       parsed.mustChangePassword = mustChange;
       if (parsed.user) {
         parsed.user.mustChangePassword = mustChange;
       }
-      sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed));
+      writeRawAuth(JSON.stringify(parsed));
     }
   } catch {}
 }
@@ -179,7 +179,7 @@ export async function getMe(token?: string): Promise<CurrentUserResponse> {
   // Check if session has updated mustChangePassword
   if (typeof window !== "undefined") {
     try {
-      const raw = sessionStorage.getItem(AUTH_STORAGE_KEY);
+      const raw = readRawAuth();
       if (raw) {
         const parsed = JSON.parse(raw);
         if (typeof parsed.mustChangePassword === "boolean") {

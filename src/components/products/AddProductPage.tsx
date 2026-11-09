@@ -40,6 +40,22 @@ function cleanPrice(value: string): string {
   return t;
 }
 
+const INT_RE = /^\d+$/;
+const LIMITS = { name: 200, sku: 100, barcode: 100, unit: 30 };
+
+/** While typing: digits only (quantities and the reorder point are whole numbers). */
+const cleanInt = (v: string) => v.replace(/\D/g, "").slice(0, 9);
+
+type Errs = Record<string, string>;
+
+function FieldError({ text }: { text?: string }) {
+  return text ? (
+    <span className="field-error" role="alert">
+      {text}
+    </span>
+  ) : null;
+}
+
 function PriceField({
   id,
   label,
@@ -108,6 +124,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
   const [suppliers, setSuppliers] = useState<LookupOption[]>([]);
   const [warehouses, setWarehouses] = useState<LookupOption[]>([]);
   const [loadError, setLoadError] = useState("");
+  const [optionsLoaded, setOptionsLoaded] = useState(false);
 
   // Form
   const [productName, setProductName] = useState("");
@@ -149,6 +166,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
         setBrands(b);
         setSuppliers(s);
         setWarehouses(w);
+        setOptionsLoaded(true);
       })
       .catch((err) => setLoadError(err instanceof ApiError ? err.message : "Could not load categories and warehouses."));
   }, []);
@@ -196,37 +214,103 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
     }
   };
 
+  /** Every rule the form must pass before saving (same checks as the mobile app). */
+  const validateForm = (): { top: Errs; rows: Record<number, Errs>; count: number } => {
+    const top: Errs = {};
+    const rows: Record<number, Errs> = {};
+
+    if (!productName.trim()) top.name = "Product name is required.";
+    else if (productName.trim().length > LIMITS.name) top.name = `Product name is too long (max ${LIMITS.name} characters).`;
+    if (!categoryCode) top.category = "Please choose a category.";
+    if (sku.trim().length > LIMITS.sku) top.sku = `SKU is too long (max ${LIMITS.sku} characters).`;
+    if (barcode.trim().length > LIMITS.barcode) top.barcode = `Barcode is too long (max ${LIMITS.barcode} characters).`;
+    if (unit.trim().length > LIMITS.unit) top.unit = `Unit is too long (max ${LIMITS.unit} characters).`;
+    if (minStock.trim() && !INT_RE.test(minStock.trim())) top.minStock = "Reorder point must be a whole number.";
+
+    if (!hasVariants) {
+      const cost = priceError(unitCost, "Unit cost");
+      if (cost) top.cost = cost;
+      const sell = priceError(sellingPrice, "Selling price");
+      if (sell) top.sell = sell;
+      if (!warehouseCode) top.warehouse = "Please choose the warehouse the stock goes into.";
+      const q = quantity.trim();
+      if (!q) top.quantity = "Initial quantity is required.";
+      else if (!INT_RE.test(q) || Number(q) < 1) top.quantity = "Quantity must be a whole number of at least 1.";
+    } else if (variantRows.length === 0) {
+      top.variants = "Add at least one variant.";
+    } else {
+      const seen = { name: new Map<string, number>(), sku: new Map<string, number>(), barcode: new Map<string, number>() };
+      variantRows.forEach((r, i) => {
+        const e: Errs = {};
+        const name = r.name.trim();
+        if (!name) e.name = "Variant name is required.";
+        else if (name.length > LIMITS.name) e.name = `Name is too long (max ${LIMITS.name} characters).`;
+        else if (seen.name.has(name.toLowerCase())) e.name = `Same name as variant ${seen.name.get(name.toLowerCase())}.`;
+        else seen.name.set(name.toLowerCase(), i + 1);
+
+        const vsku = r.sku.trim();
+        if (vsku.length > LIMITS.sku) e.sku = `Max ${LIMITS.sku} characters.`;
+        else if (vsku && seen.sku.has(vsku.toLowerCase())) e.sku = `Same SKU as variant ${seen.sku.get(vsku.toLowerCase())}.`;
+        else if (vsku) seen.sku.set(vsku.toLowerCase(), i + 1);
+
+        const vbar = r.barcode.trim();
+        if (vbar.length > LIMITS.barcode) e.barcode = `Max ${LIMITS.barcode} characters.`;
+        else if (vbar && seen.barcode.has(vbar.toLowerCase())) e.barcode = `Same barcode as variant ${seen.barcode.get(vbar.toLowerCase())}.`;
+        else if (vbar) seen.barcode.set(vbar.toLowerCase(), i + 1);
+
+        const cost = priceError(r.cost, "Unit cost");
+        if (cost) e.cost = cost;
+        const sell = priceError(r.sell, "Selling price");
+        if (sell) e.sell = sell;
+        if (!r.warehouseCode) e.warehouse = "Choose a warehouse.";
+        const q = r.quantity.trim();
+        if (!q) e.quantity = "Quantity is required.";
+        else if (!INT_RE.test(q) || Number(q) < 1) e.quantity = "Whole number, at least 1.";
+        if (!r.image) e.image = "A photo of this variant is required.";
+        if (Object.keys(e).length) rows[r.key] = e;
+      });
+    }
+
+    const count = Object.keys(top).length + Object.values(rows).reduce((n, e) => n + Object.keys(e).length, 0);
+    return { top, rows, count };
+  };
+
+  // Errors are shown on every field after the first Save click, then update as the person fixes them.
+  const check = validateForm();
+  const err = (key: string) => (submitted ? check.top[key] : undefined);
+  const rowErr = (key: number, field: string) => (submitted ? check.rows[key]?.[field] : undefined);
+
   const handleSave = async () => {
     if (saving) return;
-    if (!productName.trim()) return void messageApi.error("Please enter a product name.");
-    if (!categoryCode) return void messageApi.error("Please choose a category.");
     setSubmitted(true);
+    if (check.count > 0) {
+      messageApi.error(`Please fix ${check.count} ${check.count === 1 ? "field" : "fields"} marked in red before saving.`);
+      // After the errors render, bring the first one into view.
+      setTimeout(() => {
+        const first = document.querySelector<HTMLElement>(
+          '.add-product-wrapper [aria-invalid="true"], .add-product-wrapper [data-invalid="true"]',
+        );
+        first?.scrollIntoView({ behavior: "smooth", block: "center" });
+        first?.focus({ preventScroll: true });
+      }, 80);
+      return;
+    }
+
     let variantInputs: NewVariantInput[] | undefined;
     let qty = num(quantity) ?? 0;
     if (hasVariants) {
-      if (variantRows.length === 0) return void messageApi.error("Add at least one variant.");
-      variantInputs = [];
-      for (let i = 0; i < variantRows.length; i++) {
-        const r = variantRows[i];
-        if (!r.name.trim()) return void messageApi.error(`Variant ${i + 1}: enter a name.`);
-        const costProblem = priceError(r.cost, "Unit cost");
-        if (costProblem) return void messageApi.error(`Variant ${i + 1}: ${costProblem}`);
-        const sellProblem = priceError(r.sell, "Selling price");
-        if (sellProblem) return void messageApi.error(`Variant ${i + 1}: ${sellProblem}`);
-        if (!r.warehouseCode) return void messageApi.error(`Variant ${i + 1}: choose a warehouse.`);
-        const q = num(r.quantity);
-        if (!q || q < 1) return void messageApi.error(`Variant ${i + 1}: enter a quantity of at least 1.`);
-        if (!r.image) return void messageApi.error(`Variant ${i + 1}: add a photo.`);
-        variantInputs.push({ image: r.image, name: r.name, sku: r.sku, barcode: r.barcode, costPrice: num(r.cost), sellingPrice: num(r.sell), warehouseCode: r.warehouseCode, quantity: q, location: r.location });
-      }
+      variantInputs = variantRows.map((r) => ({
+        image: r.image as File,
+        name: r.name,
+        sku: r.sku,
+        barcode: r.barcode,
+        costPrice: num(r.cost),
+        sellingPrice: num(r.sell),
+        warehouseCode: r.warehouseCode,
+        quantity: num(r.quantity) ?? 0,
+        location: r.location,
+      }));
       qty = 1;
-    } else {
-      const costProblem = priceError(unitCost, "Unit cost");
-      if (costProblem) return void messageApi.error(costProblem);
-      const sellProblem = priceError(sellingPrice, "Selling price");
-      if (sellProblem) return void messageApi.error(sellProblem);
-      if (!warehouseCode) return void messageApi.error("Please choose the warehouse the stock goes into.");
-      if (!qty || qty < 1) return void messageApi.error("Enter an initial quantity of at least 1.");
     }
 
     setSaving(true);
@@ -302,7 +386,8 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                 <label className="form-label" htmlFor="product-name">
                   Product name *
                 </label>
-                <input id="product-name" type="text" className="form-input" placeholder="Product name" value={productName} onChange={(e) => setProductName(e.target.value)} />
+                <input id="product-name" type="text" className={`form-input${err("name") ? " has-error" : ""}`} aria-invalid={Boolean(err("name"))} placeholder="Product name" value={productName} onChange={(e) => setProductName(e.target.value)} />
+                <FieldError text={err("name")} />
               </div>
 
             <div className="form-row-two-cols">
@@ -310,14 +395,15 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                 <label className="form-label" htmlFor="product-sku">
                   SKU (optional — generated if empty)
                 </label>
-                <input id="product-sku" type="text" className="form-input" placeholder="SKU" value={sku} onChange={(e) => setSku(e.target.value)} />
+                <input id="product-sku" type="text" className={`form-input${err("sku") ? " has-error" : ""}`} aria-invalid={Boolean(err("sku"))} placeholder="SKU" value={sku} onChange={(e) => setSku(e.target.value)} />
+                <FieldError text={err("sku")} />
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="product-category">
                   Category *
                 </label>
                 <div className="select-container">
-                  <SearchSelect id="product-category" className="form-select" value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)}>
+                  <SearchSelect id="product-category" className={`form-select${err("category") ? " has-error" : ""}`} aria-invalid={Boolean(err("category"))} value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)}>
                     <option value="">Select a category</option>
                     {categories.map((o) => (
                       <option key={o.code} value={o.code}>
@@ -329,6 +415,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </div>
+                <FieldError text={err("category")} />
               </div>
             </div>
 
@@ -373,7 +460,8 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                 <label className="form-label" htmlFor="product-unit">
                   Unit
                 </label>
-                <input id="product-unit" type="text" className="form-input" placeholder="PCS" value={unit} onChange={(e) => setUnit(e.target.value)} />
+                <input id="product-unit" type="text" className={`form-input${err("unit") ? " has-error" : ""}`} aria-invalid={Boolean(err("unit"))} placeholder="PCS" value={unit} onChange={(e) => setUnit(e.target.value)} />
+                <FieldError text={err("unit")} />
               </div>
             </div>
 
@@ -381,7 +469,8 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                 <label className="form-label" htmlFor="product-barcode">
                   Barcode (optional)
                 </label>
-                <input id="product-barcode" type="text" className="form-input" placeholder="Barcode" value={barcode} onChange={(e) => setBarcode(e.target.value)} />
+                <input id="product-barcode" type="text" className={`form-input${err("barcode") ? " has-error" : ""}`} aria-invalid={Boolean(err("barcode"))} placeholder="Barcode" value={barcode} onChange={(e) => setBarcode(e.target.value)} />
+                <FieldError text={err("barcode")} />
               </div>
 
             <div className="form-group">
@@ -417,7 +506,8 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                 <label className="form-label" htmlFor="reorder-point">
                   Reorder point (units)
                 </label>
-                <input id="reorder-point" type="text" className="form-input" placeholder="e.g. 15" value={minStock} onChange={(e) => setMinStock(e.target.value)} inputMode="numeric" />
+                <input id="reorder-point" type="text" className={`form-input${err("minStock") ? " has-error" : ""}`} aria-invalid={Boolean(err("minStock"))} placeholder="e.g. 15" value={minStock} onChange={(e) => setMinStock(cleanInt(e.target.value))} inputMode="numeric" />
+                <FieldError text={err("minStock")} />
               </div>
             </div>
 
@@ -428,7 +518,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                   Initial warehouse *
                 </label>
                 <div className="select-container">
-                  <SearchSelect id="initial-warehouse" className="form-select" value={warehouseCode} onChange={(e) => setWarehouseCode(e.target.value)}>
+                  <SearchSelect id="initial-warehouse" className={`form-select${err("warehouse") ? " has-error" : ""}`} aria-invalid={Boolean(err("warehouse"))} value={warehouseCode} onChange={(e) => setWarehouseCode(e.target.value)}>
                     <option value="">Select a warehouse</option>
                     {warehouses.map((o) => (
                       <option key={o.code} value={o.code}>
@@ -440,12 +530,17 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </div>
+                <FieldError text={err("warehouse")} />
+                {optionsLoaded && warehouses.length === 0 && (
+                  <span className="field-warning">No warehouse exists yet. Create one in Warehouses first.</span>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="initial-qty">
                   Initial quantity *
                 </label>
-                <input id="initial-qty" type="text" className="form-input" placeholder="e.g. 50" value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="numeric" />
+                <input id="initial-qty" type="text" className={`form-input${err("quantity") ? " has-error" : ""}`} aria-invalid={Boolean(err("quantity"))} placeholder="e.g. 50" value={quantity} onChange={(e) => setQuantity(cleanInt(e.target.value))} inputMode="numeric" />
+                <FieldError text={err("quantity")} />
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="initial-location">
@@ -471,23 +566,31 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                     )}
                   </div>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 12 }}>
-                    <VariantImagePicker required file={r.image} onPick={(f) => patchVariant(r.key, { image: f })} />
-                    <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280", lineHeight: 1.5 }}>
-                      Photo of this variant (required) — shown on the product page, stock list and mobile app.
-                    </p>
+                    <div data-invalid={rowErr(r.key, "image") ? "true" : undefined}>
+                      <VariantImagePicker required file={r.image} onPick={(f) => patchVariant(r.key, { image: f })} />
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280", lineHeight: 1.5 }}>
+                        Photo of this variant (required) — shown on the product page, stock list and mobile app.
+                      </p>
+                      <FieldError text={rowErr(r.key, "image")} />
+                    </div>
                   </div>
                   <div className="form-row-three-cols">
                     <div className="form-group">
                       <label className="form-label">Name *</label>
-                      <input type="text" className="form-input" placeholder="e.g. Red / L" value={r.name} onChange={(e) => patchVariant(r.key, { name: e.target.value })} />
+                      <input type="text" className={`form-input${rowErr(r.key, "name") ? " has-error" : ""}`} aria-invalid={Boolean(rowErr(r.key, "name"))} placeholder="e.g. Red / L" value={r.name} onChange={(e) => patchVariant(r.key, { name: e.target.value })} />
+                      <FieldError text={rowErr(r.key, "name")} />
                     </div>
                     <div className="form-group">
                       <label className="form-label">SKU</label>
-                      <input type="text" className="form-input" placeholder="optional" value={r.sku} onChange={(e) => patchVariant(r.key, { sku: e.target.value })} />
+                      <input type="text" className={`form-input${rowErr(r.key, "sku") ? " has-error" : ""}`} aria-invalid={Boolean(rowErr(r.key, "sku"))} placeholder="optional" value={r.sku} onChange={(e) => patchVariant(r.key, { sku: e.target.value })} />
+                      <FieldError text={rowErr(r.key, "sku")} />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Barcode</label>
-                      <input type="text" className="form-input" placeholder="optional" value={r.barcode} onChange={(e) => patchVariant(r.key, { barcode: e.target.value })} />
+                      <input type="text" className={`form-input${rowErr(r.key, "barcode") ? " has-error" : ""}`} aria-invalid={Boolean(rowErr(r.key, "barcode"))} placeholder="optional" value={r.barcode} onChange={(e) => patchVariant(r.key, { barcode: e.target.value })} />
+                      <FieldError text={rowErr(r.key, "barcode")} />
                     </div>
                   </div>
                   <div className="form-row-three-cols">
@@ -495,20 +598,22 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
                     <PriceField label="Selling price" value={r.sell} onChange={(v) => patchVariant(r.key, { sell: v })} submitted={submitted} lowerThan={r.cost} />
                     <div className="form-group">
                       <label className="form-label">Quantity *</label>
-                      <input type="text" className="form-input" placeholder="e.g. 20" inputMode="numeric" value={r.quantity} onChange={(e) => patchVariant(r.key, { quantity: e.target.value })} />
+                      <input type="text" className={`form-input${rowErr(r.key, "quantity") ? " has-error" : ""}`} aria-invalid={Boolean(rowErr(r.key, "quantity"))} placeholder="e.g. 20" inputMode="numeric" value={r.quantity} onChange={(e) => patchVariant(r.key, { quantity: cleanInt(e.target.value) })} />
+                      <FieldError text={rowErr(r.key, "quantity")} />
                     </div>
                   </div>
                   <div className="form-row-two-cols">
                     <div className="form-group">
                       <label className="form-label">Warehouse *</label>
                       <div className="select-container">
-                      <SearchSelect className="form-select" value={r.warehouseCode} onChange={(e) => patchVariant(r.key, { warehouseCode: e.target.value })}>
+                      <SearchSelect className={`form-select${rowErr(r.key, "warehouse") ? " has-error" : ""}`} aria-invalid={Boolean(rowErr(r.key, "warehouse"))} value={r.warehouseCode} onChange={(e) => patchVariant(r.key, { warehouseCode: e.target.value })}>
                         <option value="">Select a warehouse</option>
                         {warehouses.map((o) => (
                           <option key={o.code} value={o.code}>{o.name}</option>
                         ))}
                       </SearchSelect>
                     </div>
+                      <FieldError text={rowErr(r.key, "warehouse")} />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Location</label>
@@ -520,6 +625,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
               <button type="button" className="btn-add-product-cancel" onClick={() => setVariantRows((rows) => [...rows, newVariant()])}>
                 + Add variant
               </button>
+              <FieldError text={err("variants")} />
             </div>
           )}
         </div>
