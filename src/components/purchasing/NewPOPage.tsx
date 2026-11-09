@@ -209,7 +209,10 @@ export default function NewPOPage({ orderId }: { orderId?: string }) {
     mergeLines(lines);
   };
 
-  const addFromImport = (rows: ImportRow[]) => {
+  const addFromImport = (rows: ImportRow[], order: { supplierCode?: string; warehouseCode?: string } = {}) => {
+    // Supplier / warehouse written in the file fill the order (only if they are in the lists).
+    if (order.supplierCode && suppliers.some((s) => s.code === order.supplierCode)) setSupplierCode(order.supplierCode);
+    if (order.warehouseCode && warehouses.some((w) => w.code === order.warehouseCode)) setWarehouseCode(order.warehouseCode);
     const lines: DraftLine[] = [];
     for (const r of rows) {
       if (r.quantity === null) continue;

@@ -9,6 +9,7 @@ import {
   fetchSupplierHistory,
   previewPoImport,
   type ImportRow,
+  type PoImportResult,
   type ReorderItem,
   type SupplierOption,
 } from "@/features/purchasing/purchasing-live";
@@ -234,9 +235,9 @@ export function ImportModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onAdd: (rows: ImportRow[]) => void;
+  onAdd: (rows: ImportRow[], order: { supplierCode?: string; warehouseCode?: string }) => void;
 }) {
-  const [result, setResult] = useState<{ rows: ImportRow[]; validCount: number; errorCount: number } | null>(null);
+  const [result, setResult] = useState<PoImportResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -249,6 +250,7 @@ export function ImportModal({
 
   const existing = (result?.rows ?? []).filter((r) => !r.error);
   const newOnes = existing.filter((r) => r.isNew).length;
+  const headerErrors = result?.headerErrors ?? [];
 
   return (
     <Modal
@@ -257,14 +259,14 @@ export function ImportModal({
       width={820}
       title="Import products from Excel"
       okText={`Add ${existing.length} line${existing.length === 1 ? "" : "s"}`}
-      okButtonProps={{ disabled: existing.length === 0 }}
+      okButtonProps={{ disabled: existing.length === 0 || headerErrors.length > 0 }}
       onOk={() => {
-        onAdd(existing);
+        onAdd(existing, { supplierCode: result?.supplier?.code, warehouseCode: result?.warehouse?.code });
         onClose();
       }}
     >
       <p style={{ color: "#6B7280", marginTop: 0 }}>
-        Columns: <code>product_code</code>, <code>variant_code</code> (if the product has variants), <code>quantity</code>, <code>unit_price</code>.
+        Columns: <code>product_code</code>, <code>variant_code</code> (if the product has variants), <code>quantity</code>, <code>unit_price</code>; optional <code>supplier_code</code> and <code>warehouse_code</code> fill the order's supplier and warehouse.
       </p>
       <Upload
         accept=".xlsx,.xls,.csv"
@@ -288,6 +290,23 @@ export function ImportModal({
       {error && <Alert type="error" message={error} style={{ marginTop: 12 }} />}
       {result && (
         <>
+          {headerErrors.map((m) => (
+            <Alert key={m} type="error" showIcon message={m} style={{ marginTop: 12 }} />
+          ))}
+          {(result.supplier || result.warehouse) && headerErrors.length === 0 && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginTop: 12 }}
+              message={
+                <span>
+                  The file sets {result.supplier && <>supplier <strong>{result.supplier.name}</strong></>}
+                  {result.supplier && result.warehouse && " and "}
+                  {result.warehouse && <>warehouse <strong>{result.warehouse.name}</strong></>} for this order.
+                </span>
+              }
+            />
+          )}
           <p style={{ margin: "12px 0" }}>
             <Tag color="green">{result.validCount} valid</Tag>
             {result.errorCount > 0 && <Tag color="red">{result.errorCount} with errors</Tag>}

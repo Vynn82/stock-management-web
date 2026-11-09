@@ -328,7 +328,17 @@ export interface ImportRow {
 }
 
 /** `POST /purchase-orders/import` — checks an Excel/CSV file row by row, saves nothing (PO_CREATE). */
-export async function previewPoImport(file: File): Promise<{ rows: ImportRow[]; validCount: number; errorCount: number }> {
+export interface PoImportResult {
+  rows: ImportRow[];
+  validCount: number;
+  errorCount: number;
+  /** From the optional supplier_code / warehouse_code columns (the whole order). */
+  supplier?: { code: string; name: string } | null;
+  warehouse?: { code: string; name: string } | null;
+  headerErrors?: string[];
+}
+
+export async function previewPoImport(file: File): Promise<PoImportResult> {
   const form = new FormData();
   form.append("file", file);
   return api.postForm("purchase-orders/import", form);
