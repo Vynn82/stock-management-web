@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input, Modal, Select, message } from "antd";
-import { CaretDownOutlined, CheckOutlined, EditOutlined, PlusOutlined, SafetyCertificateOutlined, SearchOutlined } from "@ant-design/icons";
+import { CaretDownOutlined, CheckOutlined, EditOutlined, PlusOutlined, SafetyCertificateOutlined, SearchOutlined, StopOutlined, UndoOutlined } from "@ant-design/icons";
 import { LiveState, errorText } from "@/components/common/live-state";
 import { useAuth } from "@/hooks/use-auth";
-import { changeMemberRole, fetchRoles, fetchTeamMembers, roleLabel, type RoleRow, type TeamMemberRow } from "@/features/users/users-live";
+import { activateMember, changeMemberRole, deactivateMember, fetchRoles, fetchTeamMembers, roleLabel, type RoleRow, type TeamMemberRow } from "@/features/users/users-live";
 import { ApiError } from "@/features/live/http";
 import Can from "@/components/common/Can";
 
@@ -51,6 +51,29 @@ export default function UsersPage() {
     } finally {
       setSavingRole(false);
     }
+  }
+
+  function confirmStatusChange(member: TeamMemberRow) {
+    const deactivating = member.status !== "Inactive";
+    Modal.confirm({
+      title: deactivating ? `Deactivate ${member.name}?` : `Reactivate ${member.name}?`,
+      content: deactivating
+        ? "They will be signed out and can no longer sign in. Their history is kept, and you can reactivate them later."
+        : "They will be able to sign in again with their current password.",
+      okText: deactivating ? "Deactivate" : "Reactivate",
+      okButtonProps: deactivating ? { danger: true } : undefined,
+      centered: true,
+      onOk: async () => {
+        try {
+          if (deactivating) await deactivateMember(member.id);
+          else await activateMember(member.id);
+          messageApi.success(deactivating ? `${member.name} was deactivated.` : `${member.name} was reactivated.`);
+          await load();
+        } catch (error) {
+          messageApi.error(error instanceof ApiError ? error.message : "Could not change the account status.");
+        }
+      },
+    });
   }
 
   const load = useCallback(async () => {
@@ -187,7 +210,10 @@ export default function UsersPage() {
             <td><span className={`team-member-status ${member.status === "Active" ? "active" : "pending"}`}>{member.status}</span></td>
             <td>{member.joined}</td>
             <Can any="USER_ROLE_UPDATE"><td className="team-member-actions">
-              {!(user?.staffId && member.staffId === user.staffId) && <button type="button" className="team-member-action-btn" onClick={() => openChangeRole(member)} aria-label={`Change role for ${member.name}`}><EditOutlined />Change role</button>}
+              {!(user?.staffId && member.staffId === user.staffId) && <div className="team-member-action-group">
+                <button type="button" className="team-member-action-btn" onClick={() => openChangeRole(member)} aria-label={`Change role for ${member.name}`}><EditOutlined />Change role</button>
+                <button type="button" className={`team-member-action-btn ${member.status === "Inactive" ? "" : "is-danger"}`} onClick={() => confirmStatusChange(member)} aria-label={`${member.status === "Inactive" ? "Reactivate" : "Deactivate"} ${member.name}`}>{member.status === "Inactive" ? <UndoOutlined /> : <StopOutlined />}{member.status === "Inactive" ? "Reactivate" : "Deactivate"}</button>
+              </div>}
             </td></Can>
           </tr>)}
           {filteredMembers.length === 0 && <tr><td className="team-members-empty" colSpan={7}>No team members found.</td></tr>}

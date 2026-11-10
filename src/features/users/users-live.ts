@@ -88,6 +88,16 @@ export async function changeMemberRole(userId: string, roleId: string): Promise<
   await api.put(`users/${userId}/role`, { roleId });
 }
 
+/** `PATCH /users/:id/deactivate`: the person can no longer sign in; their history is kept. */
+export async function deactivateMember(userId: string): Promise<void> {
+  await api.patch(`users/${userId}/deactivate`);
+}
+
+/** `PATCH /users/:id/activate`: lets a deactivated person sign in again. */
+export async function activateMember(userId: string): Promise<void> {
+  await api.patch(`users/${userId}/activate`);
+}
+
 export interface InviteInput {
   firstName: string;
   lastName: string;
