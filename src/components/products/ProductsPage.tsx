@@ -9,11 +9,14 @@ import { ProductRow, StockStatus, deactivateProduct, fetchProducts } from "@/fea
 import { Pill } from "@/components/customer-orders/co-ui";
 import Can from "@/components/common/Can";
 import ProductImportModal from "./ProductImportModal";
+import { useT, useTx } from "@/lib/i18n";
 
 const STATUS_TONE = { "In stock": "ok", "Low stock": "warn", "Out of stock": "bad" } as const;
 
 export default function ProductsPage() {
   const router = useRouter();
+  const t = useT();
+  const tx = useTx();
   const [messageApi, holder] = message.useMessage();
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,10 +32,11 @@ export default function ProductsPage() {
     try {
       setRows(await fetchProducts());
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not load products.");
+      setError(err instanceof ApiError ? err.message : t("prod.loadFail"));
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -53,17 +57,18 @@ export default function ProductsPage() {
 
   function confirmDeactivate(row: ProductRow) {
     Modal.confirm({
-      title: `Deactivate ${row.name}?`,
-      content: "It will be hidden from stock lists. Its history is kept.",
-      okText: "Deactivate",
+      title: t("prod.deactivateTitle", { name: row.name }),
+      content: t("prod.deactivateBody"),
+      okText: t("prod.deactivate"),
+      cancelText: t("common.cancel"),
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await deactivateProduct(row.id);
           setRows((cur) => cur.filter((r) => r.id !== row.id));
-          messageApi.success("Product deactivated.");
+          messageApi.success(t("prod.deactivated"));
         } catch (err) {
-          messageApi.error(err instanceof ApiError ? err.message : "Could not deactivate the product.");
+          messageApi.error(err instanceof ApiError ? err.message : t("prod.deactivateFail"));
         }
       },
     });
@@ -72,17 +77,17 @@ export default function ProductsPage() {
   return (
     <div className="page-content data-page">
       {holder}
-      <ProductImportModal open={importOpen} onClose={() => setImportOpen(false)} onDone={() => { messageApi.success("Products imported."); void load(); }} />
+      <ProductImportModal open={importOpen} onClose={() => setImportOpen(false)} onDone={() => { messageApi.success(t("prod.imported")); void load(); }} />
       <div className="page-heading">
-        <h1>Products</h1>
-        <p>Manage your inventory and keep stock levels healthy.</p>
+        <h1>{t("prod.title")}</h1>
+        <p>{t("prod.subtitle")}</p>
       </div>
       <div className="panel-card">
         <div className="data-toolbar">
           <Input
             allowClear
             prefix={<SearchOutlined />}
-            placeholder="Search name, SKU, category…"
+            placeholder={t("prod.search")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -90,10 +95,10 @@ export default function ProductsPage() {
             value={status}
             onChange={setStatus}
             options={[
-              { value: "all", label: "All status" },
-              { value: "In stock", label: "In stock" },
-              { value: "Low stock", label: "Low stock" },
-              { value: "Out of stock", label: "Out of stock" },
+              { value: "all", label: t("prod.allStatus") },
+              { value: "In stock", label: tx("stockStatus", "In stock") },
+              { value: "Low stock", label: tx("stockStatus", "Low stock") },
+              { value: "Out of stock", label: tx("stockStatus", "Out of stock") },
             ]}
           />
           <Select
@@ -101,23 +106,23 @@ export default function ProductsPage() {
             optionFilterProp="label"
             value={category}
             onChange={setCategory}
-            options={[{ value: "all", label: "All categories" }, ...categories.map((c) => ({ value: c, label: c }))]}
+            options={[{ value: "all", label: t("prod.allCategories") }, ...categories.map((c) => ({ value: c, label: c }))]}
           />
           <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
-            Refresh
+            {t("common.refresh")}
           </Button>
           <Can any={"PRODUCT_IMPORT"}><Button onClick={() => setImportOpen(true)}>
-            Import Excel
+            {t("prod.import")}
           </Button></Can>
           <Can any={"PRODUCT_CREATE"}><Button type="primary" icon={<PlusOutlined />} onClick={() => router.push("/products/create")}>
-            Create product
+            {t("prod.create")}
           </Button></Can>
         </div>
 
         {error && !rows.length ? (
           <div className="empty-state" role="alert" style={{ padding: "40px 0", textAlign: "center" }}>
             <p style={{ color: "var(--muted)", marginBottom: 12 }}>{error}</p>
-            <Button onClick={load}>Try again</Button>
+            <Button onClick={load}>{t("common.tryAgain")}</Button>
           </div>
         ) : (
           <Table<ProductRow>
@@ -129,10 +134,10 @@ export default function ProductsPage() {
             loading={loading}
             dataSource={shown}
             pagination={{ pageSize: 10, hideOnSinglePage: true, showSizeChanger: false }}
-            locale={{ emptyText: rows.length ? "No products match your filters." : "No products yet. Create your first one." }}
+            locale={{ emptyText: rows.length ? t("prod.noMatch") : t("prod.none") }}
             columns={[
               {
-                title: "PRODUCT",
+                title: t("col.product"),
                 dataIndex: "name",
                 render: (value: string, r) => (
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -151,28 +156,28 @@ export default function ProductsPage() {
                       <strong>{value}</strong>
                       <div style={{ color: "var(--muted)", fontSize: 12 }}>
                         {r.sku}
-                        {r.hasVariants ? " · variants" : ""}
+                        {r.hasVariants ? ` · ${t("prod.variants")}` : ""}
                       </div>
                     </div>
                   </div>
                 ),
               },
-              { title: "CATEGORY", dataIndex: "category" },
-              { title: "BRAND", dataIndex: "brand" },
-              { title: "WAREHOUSE", dataIndex: "warehouses" },
-              { title: "STOCK", dataIndex: "quantity", sorter: (a, b) => a.quantity - b.quantity },
+              { title: t("col.category"), dataIndex: "category" },
+              { title: t("col.brand"), dataIndex: "brand" },
+              { title: t("col.warehouse"), dataIndex: "warehouses" },
+              { title: t("col.stock"), dataIndex: "quantity", sorter: (a, b) => a.quantity - b.quantity },
               {
-                title: "STATUS",
+                title: t("col.status"),
                 dataIndex: "status",
-                render: (v: StockStatus) => <Pill tone={STATUS_TONE[v]}>{v}</Pill>,
+                render: (v: StockStatus) => <Pill tone={STATUS_TONE[v]}>{tx("stockStatus", v)}</Pill>,
               },
-              { title: "PRICE", dataIndex: "price", sorter: (a, b) => a.price - b.price, render: (v: number) => `$${v.toFixed(2)}` },
+              { title: t("col.price"), dataIndex: "price", sorter: (a, b) => a.price - b.price, render: (v: number) => `$${v.toFixed(2)}` },
               {
                 title: "",
                 key: "actions",
                 width: 56,
                 render: (_: unknown, r) => (
-                  <Can any={"PRODUCT_UPDATE"}><Button type="text" danger aria-label={`Deactivate ${r.name}`} icon={<DeleteOutlined />} onClick={(e) => { e.stopPropagation(); confirmDeactivate(r); }} /></Can>
+                  <Can any={"PRODUCT_UPDATE"}><Button type="text" danger aria-label={`${t("prod.deactivate")} ${r.name}`} icon={<DeleteOutlined />} onClick={(e) => { e.stopPropagation(); confirmDeactivate(r); }} /></Can>
                 ),
               },
             ]}

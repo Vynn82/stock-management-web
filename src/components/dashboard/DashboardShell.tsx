@@ -32,27 +32,30 @@ import { usePendingOrders } from "@/features/customer-orders/use-pending-orders"
 import { usePendingRequests } from "@/features/requests/use-pending-requests";
 import QuickThemeToggle from "@/components/dashboard/QuickThemeToggle";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useT, type MessageKey } from "@/lib/i18n";
+import LocaleSwitcher from "@/components/common/LocaleSwitcher";
 
 const primary = [
-  { label: "Dashboard", href: "/dashboard", icon: <AppstoreOutlined /> },
-  { label: "Products", href: "/products", icon: <BoxPlotOutlined /> },
-  { label: "Stock", href: "/stock", icon: <HomeOutlined /> },
-  { label: "Purchasing", href: "/purchasing", icon: <ShopOutlined /> },
-  { label: "Customer Orders", href: "/customer-orders", icon: <CarOutlined /> },
-  { label: "Customers", href: "/customers", icon: <ContactsOutlined /> },
-  { label: "Manage", href: "/manage/categories", icon: <DatabaseOutlined /> },
+  { label: "Dashboard", labelKey: "nav.dashboard", href: "/dashboard", icon: <AppstoreOutlined /> },
+  { label: "Products", labelKey: "nav.products", href: "/products", icon: <BoxPlotOutlined /> },
+  { label: "Stock", labelKey: "nav.stock", href: "/stock", icon: <HomeOutlined /> },
+  { label: "Purchasing", labelKey: "nav.purchasing", href: "/purchasing", icon: <ShopOutlined /> },
+  { label: "Customer Orders", labelKey: "nav.customerOrders", href: "/customer-orders", icon: <CarOutlined /> },
+  { label: "Customers", labelKey: "nav.customers", href: "/customers", icon: <ContactsOutlined /> },
+  { label: "Manage", labelKey: "nav.manage", href: "/manage/categories", icon: <DatabaseOutlined /> },
   {
     label: "Requests",
+    labelKey: "nav.requests",
     href: "/requests",
     icon: <FileTextOutlined />,
   },
-  { label: "Reports", href: "/reports", icon: <BarChartOutlined /> },
-  { label: "Users", href: "/users", icon: <TeamOutlined /> },
-];
+  { label: "Reports", labelKey: "nav.reports", href: "/reports", icon: <BarChartOutlined /> },
+  { label: "Users", labelKey: "nav.users", href: "/users", icon: <TeamOutlined /> },
+] satisfies { label: string; labelKey: MessageKey; href: string; icon: React.ReactNode }[];
 const secondary = [
-  { label: "Notifications", href: "/notifications", icon: <BellOutlined /> },
-  { label: "Settings", href: "/settings", icon: <SettingOutlined /> },
-];
+  { label: "Notifications", labelKey: "nav.notifications", href: "/notifications", icon: <BellOutlined /> },
+  { label: "Settings", labelKey: "nav.settings", href: "/settings", icon: <SettingOutlined /> },
+] satisfies { label: string; labelKey: MessageKey; href: string; icon: React.ReactNode }[];
 
 export default function DashboardShell({
   children,
@@ -60,6 +63,7 @@ export default function DashboardShell({
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useTheme();
+  const t = useT();
   const { user, token, logout } = useAuth();
   const roleName = user?.role || user?.roles?.[0];
   // No saved login (never signed in, or the session could not be renewed): go to sign-in.
@@ -72,16 +76,16 @@ export default function DashboardShell({
     const r = checkAccess(user, href);
     return r.allowed ? undefined : () => {
       Modal.warning({
-        title: "Access restricted",
+        title: t("access.title"),
         centered: true,
-        okText: "Got it",
+        okText: t("access.gotIt"),
         content: (
           <div>
             <p style={{ margin: "0 0 6px" }}>
-              {roleName ? `Your role (${roleName}) doesn't` : "Your role doesn't"} have permission to open <strong>{r.feature}</strong>.
+              {roleName ? t("access.noPermissionRole", { role: roleName }) : t("access.noPermission")} <strong>{r.feature}</strong>.
             </p>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 12.5 }}>
-              Ask an administrator to grant <strong>{r.needs.join(" or ")}</strong> if you need it.
+              {t("access.askPre")} <strong>{r.needs.join(t("access.or"))}</strong> {t("access.askPost")}
             </p>
           </div>
         ),
@@ -94,11 +98,11 @@ export default function DashboardShell({
     const first = fresh[0];
     notification.info({
       key: "new-customer-order",
-      message: fresh.length > 1 ? `${fresh.length} new customer orders` : "New customer order",
+      message: fresh.length > 1 ? t("order.newMany", { n: fresh.length }) : t("order.newOne"),
       description:
         fresh.length > 1
-          ? "Several customers placed orders. Open the list to review them."
-          : `${first.customer.title} placed ${first.orderNo}.`,
+          ? t("order.descMany")
+          : t("order.descOne", { customer: first.customer.title, order: first.orderNo }),
       placement: "topRight",
       duration: 8,
       btn: (
@@ -110,7 +114,7 @@ export default function DashboardShell({
             router.push(fresh.length > 1 ? "/customer-orders" : `/customer-orders/${first.id}`);
           }}
         >
-          Review
+          {t("order.review")}
         </Button>
       ),
     });
@@ -179,7 +183,7 @@ export default function DashboardShell({
                     onClick={() => setManageExpanded((expanded) => !expanded)}
                   >
                     {item.icon}
-                    <span>{item.label}</span>
+                    <span>{t(item.labelKey)}</span>
                     <CaretDownOutlined
                       className={`manage-chevron ${manageExpanded ? "expanded" : ""}`}
                     />
@@ -187,20 +191,20 @@ export default function DashboardShell({
                   {manageExpanded && (
                     <div className="manage-subnav">
                       <NavItem
-                        label="Categories"
+                        label={t("nav.categories")}
                         href="/manage/categories"
                         icon={<span className="manage-bullet">•</span>}
                         active={pathname === "/manage/categories"}
                       />
                       <NavItem
-                        label="Brands"
+                        label={t("nav.brands")}
                         href="/manage/brands"
                         onLocked={lockedOf("/manage/brands")}
                         icon={<span className="manage-bullet">•</span>}
                         active={pathname === "/manage/brands"}
                       />
                       <NavItem
-                        label="Suppliers"
+                        label={t("nav.suppliers")}
                         href="/manage/suppliers"
                         onLocked={lockedOf("/manage/suppliers")}
                         icon={<span className="manage-bullet">•</span>}
@@ -210,7 +214,7 @@ export default function DashboardShell({
                         }
                       />
                       <NavItem
-                        label="Warehouses"
+                        label={t("nav.warehouses")}
                         href="/manage/warehouses"
                         onLocked={lockedOf("/manage/warehouses")}
                         icon={<span className="manage-bullet">•</span>}
@@ -223,6 +227,7 @@ export default function DashboardShell({
                 <NavItem
                   key={item.label}
                   {...item}
+                  label={t(item.labelKey)}
                   onLocked={lockedOf(item.href)}
                   active={
                     pathname === item.href ||
@@ -238,6 +243,7 @@ export default function DashboardShell({
               <NavItem
                 key={item.label}
                 {...item}
+                label={t(item.labelKey)}
                 active={
                   item.href !== "/" &&
                   (pathname === item.href ||
@@ -252,14 +258,14 @@ export default function DashboardShell({
               onClick={() => setConfirmSignOut(true)}
             >
               <LogoutOutlined />
-              <span>Sign out</span>
+              <span>{t("nav.signOut")}</span>
             </button>
           </nav>
           <div className="sidebar-bottom">
             <div className="support-card">
-              <strong>Need help?</strong>
-              <p>Our support team replies within an hour.</p>
-              <button type="button" onClick={() => router.push("/help")}>Contact support</button>
+              <strong>{t("support.title")}</strong>
+              <p>{t("support.body")}</p>
+              <button type="button" onClick={() => router.push("/help")}>{t("support.contact")}</button>
             </div>
           </div>
         </aside>
@@ -269,13 +275,14 @@ export default function DashboardShell({
               <button
                 className="mobile-menu"
                 onClick={() => setOpen(!open)}
-                aria-label="Open navigation"
+                aria-label={t("nav.openNavigation")}
               >
                 <MenuOutlined />
               </button>
               <div />
               {showDashboardTools && (
                 <div className="topbar-right">
+                  <LocaleSwitcher />
                   <QuickThemeToggle />
                   <DatePicker.RangePicker
                     className="date-picker"
@@ -290,9 +297,9 @@ export default function DashboardShell({
                     suffixIcon={<CalendarOutlined />}
                     allowClear={false}
                     inputReadOnly
-                    aria-label="Select date range"
+                    aria-label={t("header.selectDateRange")}
                   />
-                  <button type="button" className="avatar avatar-button" aria-label="Open my profile" title="My profile" onClick={() => router.push("/settings/profile")}>VK</button>
+                  <button type="button" className="avatar avatar-button" aria-label={t("header.openProfile")} title={t("header.profile")} onClick={() => router.push("/settings/profile")}>VK</button>
                 </div>
               )}
             </header>
@@ -320,9 +327,9 @@ export default function DashboardShell({
             <span className="signout-icon" aria-hidden="true">
               <LogoutOutlined />
             </span>
-            <h2 id="signout-title">Sign out of StockFlow?</h2>
+            <h2 id="signout-title">{t("signout.title")}</h2>
             <p id="signout-description">
-              You&apos;ll need to sign in again to access your dashboard.
+              {t("signout.body")}
             </p>
             <div className="signout-actions">
               <button
@@ -334,7 +341,7 @@ export default function DashboardShell({
                   signOutTriggerRef.current?.focus();
                 }}
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 className="signout-confirm"
@@ -344,7 +351,7 @@ export default function DashboardShell({
                   router.push("/auth/login");
                 }}
               >
-                Sign out
+                {t("nav.signOut")}
               </button>
             </div>
           </section>
@@ -369,13 +376,14 @@ function NavItem({
   badge?: number;
   onLocked?: () => void;
 }) {
+  const t = useT();
   if (onLocked) {
     return (
       <Link
         className={`nav-item ${active ? "active" : ""}`}
         href={href}
         aria-disabled="true"
-        title="You don't have access to this feature"
+        title={t("nav.noAccess")}
         style={{ opacity: 0.6 }}
         onClick={(e) => {
           e.preventDefault();

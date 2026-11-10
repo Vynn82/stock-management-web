@@ -7,12 +7,14 @@ import { AuthError, signIn } from "@/features/auth/auth-flow.api";
 import { getMe } from "@/features/auth/auth.api";
 import { mapCurrentUserToUser, setTempPassword, clearTempPassword, getStoredAuth } from "@/lib/auth/session";
 import { useAuth } from "@/hooks/use-auth";
+import { useT } from "@/lib/i18n";
 import { Alert, AuthSplit, Field, PasswordField, SubmitButton, UserIcon } from "./auth-ui";
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const auth = useAuth();
+  const t = useT();
   const [staffId, setStaffId] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,7 +35,7 @@ function LoginForm() {
     event.preventDefault();
     if (loading) return;
     if (!staffId.trim() || !password) {
-      setError(new AuthError("Enter your Staff ID and password.", "validation"));
+      setError(new AuthError(t("auth.enterBoth"), "validation"));
       return;
     }
 
@@ -62,7 +64,7 @@ function LoginForm() {
       setError(
         err instanceof AuthError
           ? err
-          : new AuthError("Something went wrong. Please try again.", "server"),
+          : new AuthError(t("auth.generic"), "server"),
       );
       setPassword("");
       setLoading(false);
@@ -72,21 +74,21 @@ function LoginForm() {
   return (
     <>
       <header className="af-head is-left">
-        <h2>Welcome back!</h2>
-        <p>Sign in with your Staff ID to manage your inventory.</p>
+        <h2>{t("auth.welcome")}</h2>
+        <p>{t("auth.subtitle")}</p>
       </header>
 
-      {justReset && !error && <Alert tone="success">Password updated. Sign in with your new password.</Alert>}
-      {expired && !error && !justReset && <Alert tone="info">Your session ended. Please sign in again.</Alert>}
+      {justReset && !error && <Alert tone="success">{t("auth.resetDone")}</Alert>}
+      {expired && !error && !justReset && <Alert tone="info">{t("auth.expired")}</Alert>}
       {error && (
         <Alert tone="error">
           {error.kind === "inactive" ? (
             <>
-              <strong>Account is not active.</strong> Ask your administrator to re-enable it.
+              <strong>{t("auth.inactiveTitle")}</strong> {t("auth.inactiveBody")}
             </>
           ) : error.kind === "offline" ? (
             <>
-              <strong>Can&apos;t reach the server.</strong> Check your connection and try again.
+              <strong>{t("auth.offlineTitle")}</strong> {t("auth.offlineBody")}
             </>
           ) : (
             error.message
@@ -97,13 +99,13 @@ function LoginForm() {
       <form className="af-form" onSubmit={handleSubmit} noValidate>
         <Field
           autoFocus
-          label="Staff ID"
+          label={t("auth.staffId")}
           icon={<UserIcon />}
           name="staffId"
           autoComplete="username"
           autoCapitalize="characters"
           spellCheck={false}
-          placeholder="e.g. KH0001"
+          placeholder={t("auth.staffIdPlaceholder")}
           value={staffId}
           onChange={(e) => {
             setStaffId(e.target.value);
@@ -113,10 +115,10 @@ function LoginForm() {
           aria-invalid={error?.kind === "invalid" || undefined}
         />
         <PasswordField
-          label="Password"
+          label={t("auth.password")}
           name="password"
           autoComplete="current-password"
-          placeholder="Enter your password"
+          placeholder={t("auth.passwordPlaceholder")}
           value={password}
           onChange={(e) => {
             setPassword(e.target.value);
@@ -125,15 +127,15 @@ function LoginForm() {
           disabled={loading}
           aria-invalid={error?.kind === "invalid" || undefined}
         />
-        <SubmitButton loading={loading}>{loading ? "Signing in…" : "Sign in"}</SubmitButton>
+        <SubmitButton loading={loading}>{loading ? t("auth.signingIn") : t("auth.signIn")}</SubmitButton>
       </form>
 
       <p className="sl-forgot">
-        Forgot your password? <Link href="/auth/forgot-password">Reset it</Link>
+        {t("auth.forgot")} <Link href="/auth/forgot-password">{t("auth.resetIt")}</Link>
       </p>
 
       <p className="af-note">
-        Accounts are created by your administrator. Can&apos;t sign in? Contact them to get access or a new temporary password.
+        {t("auth.note")}
       </p>
     </>
   );

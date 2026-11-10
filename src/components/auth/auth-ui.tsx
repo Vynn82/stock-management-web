@@ -4,6 +4,7 @@ import StockFlowLockup from "@/components/common/StockFlowLockup";
 import StockFlowLogo from "@/components/common/StockFlowLogo";
 import Link from "next/link";
 import { ReactNode, useId, useState } from "react";
+import { useT } from "@/lib/i18n";
 
 /* ---------- icons ---------- */
 type IconProps = { className?: string };
@@ -105,9 +106,10 @@ export function AuthCard({
 
 /** Full-screen split sign-in: brand greeting on the left, the form on the right. */
 export function AuthSplit({ children }: { children: ReactNode }) {
+  const t = useT();
   return (
     <main className="af-screen af-screen-split">
-      <section className="sl" aria-label="Sign in to StockFlow">
+      <section className="sl" aria-label={t("auth.ariaSignIn")}>
         <aside className="sl-promo">
           <svg className="sl-arcs" viewBox="0 0 800 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
             {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -125,13 +127,13 @@ export function AuthSplit({ children }: { children: ReactNode }) {
           </div>
           <div className="sl-promo-body">
             <h1>
-              Hello
+              {t("auth.hello")}
               <br />
               StockFlow!
             </h1>
-            <p>Know what you have, where it is and what to reorder. Track every product across every warehouse in real time.</p>
+            <p>{t("auth.promoBody")}</p>
           </div>
-          <small className="sl-promo-foot">© {new Date().getFullYear()} StockFlow. All rights reserved.</small>
+          <small className="sl-promo-foot">{t("auth.rights", { year: new Date().getFullYear() })}</small>
         </aside>
         <div className="sl-panel">
           <Link className="sl-brand" href="/auth/login" aria-label="StockFlow">
@@ -199,6 +201,7 @@ export function PasswordField({
   hint?: string;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">) {
   const id = useId();
+  const t = useT();
   const [show, setShow] = useState(false);
   return (
     <div className="af-field">
@@ -214,7 +217,7 @@ export function PasswordField({
         <button
           type="button"
           className="af-input-action"
-          aria-label={show ? "Hide password" : "Show password"}
+          aria-label={show ? t("auth.hidePassword") : t("auth.showPassword")}
           aria-pressed={show}
           onClick={() => setShow((v) => !v)}
         >

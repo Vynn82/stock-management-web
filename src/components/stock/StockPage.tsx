@@ -13,12 +13,15 @@ import {
 } from "@/features/stock/stock-live";
 import Can from "@/components/common/Can";
 import SearchSelect from "@/components/ui/SearchSelect";
+import { useT, useTx } from "@/lib/i18n";
 
 export type WarehouseStock = LiveWarehouseStock;
 export type StockProduct = LiveStockProduct;
 export type StockHistoryEntry = LiveHistoryEntry;
 
 export default function StockPage() {
+  const t = useT();
+  const tx = useTx();
   const live = useLiveStock();
   const { products, history } = live;
   const WAREHOUSE_LIST = useMemo(() => live.warehouses.map((w) => w.name), [live.warehouses]);
@@ -26,7 +29,8 @@ export default function StockPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    live.load();
+    // Always refetch on open: the store is cached, so products deleted/added elsewhere (Products page, other users) would otherwise be stale.
+    live.load(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const router = useRouter();
@@ -203,9 +207,9 @@ export default function StockPage() {
       {/* Top Header */}
       <div className="stock-header">
         <div>
-          <h1 className="stock-header-title">Stock</h1>
+          <h1 className="stock-header-title">{t("stock.title")}</h1>
           <p className="stock-header-subtitle">
-            Current stock levels across every warehouse.
+            {t("stock.subtitle")}
           </p>
         </div>
 
@@ -230,7 +234,7 @@ export default function StockPage() {
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-            <span>History</span>
+            <span>{t("stock.history")}</span>
           </Link>
 
           {/* Stock In */}
@@ -252,7 +256,7 @@ export default function StockPage() {
               <line x1="12" y1="19" x2="12" y2="5" />
               <polyline points="5 12 12 5 19 12" />
             </svg>
-            <span>Stock In</span>
+            <span>{t("stock.stockIn")}</span>
           </button></Can>
 
           {/* Stock Out */}
@@ -274,7 +278,7 @@ export default function StockPage() {
               <line x1="12" y1="5" x2="12" y2="19" />
               <polyline points="19 12 12 19 5 12" />
             </svg>
-            <span>Stock Out</span>
+            <span>{t("stock.stockOut")}</span>
           </Link></Can>
 
           {/* Transfer */}
@@ -298,7 +302,7 @@ export default function StockPage() {
               <polyline points="7 23 3 19 7 15" />
               <path d="M21 13v2a4 4 0 0 1-4 4H3" />
             </svg>
-            <span>Transfer</span>
+            <span>{t("stock.transfer")}</span>
           </Link></Can>
 
           {/* Adjust - Solid Purple Button */}
@@ -327,7 +331,7 @@ export default function StockPage() {
               <line x1="9" y1="8" x2="15" y2="8" />
               <line x1="17" y1="16" x2="23" y2="16" />
             </svg>
-            <span>Adjust</span>
+            <span>{t("stock.adjust")}</span>
           </Link></Can>
 
           {/* Reconcile: count on the shelf vs system */}
@@ -350,7 +354,7 @@ export default function StockPage() {
               <polyline points="1 20 1 14 7 14" />
               <path d="M3.5 9a9 9 0 0 1 14.8-3.4L23 10M1 14l4.7 4.4A9 9 0 0 0 20.5 15" />
             </svg>
-            <span>Reconcile</span>
+            <span>{t("stock.reconcile")}</span>
           </Link></Can>
         </div>
       </div>
@@ -378,7 +382,7 @@ export default function StockPage() {
             </div>
           </div>
           <div className="stock-kpi-value">{stats.totalStockValue}</div>
-          <div className="stock-kpi-label">Total stock value</div>
+          <div className="stock-kpi-label">{t("stock.totalValue")}</div>
         </div>
 
         {/* Card 2: Low stock items */}
@@ -400,10 +404,10 @@ export default function StockPage() {
                 <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
             </div>
-            <span className="stock-kpi-badge muted">needs reorder</span>
+            <span className="stock-kpi-badge muted">{t("stock.needsReorder")}</span>
           </div>
           <div className="stock-kpi-value">{stats.lowStockItems}</div>
-          <div className="stock-kpi-label">Low stock items</div>
+          <div className="stock-kpi-label">{t("stock.lowItems")}</div>
         </div>
 
         {/* Card 3: Out of stock */}
@@ -427,7 +431,7 @@ export default function StockPage() {
             </div>
           </div>
           <div className="stock-kpi-value">{stats.outOfStock}</div>
-          <div className="stock-kpi-label">Out of stock</div>
+          <div className="stock-kpi-label">{t("stock.outOfStock")}</div>
         </div>
 
         {/* Card 4: Active warehouses */}
@@ -450,7 +454,7 @@ export default function StockPage() {
             </div>
           </div>
           <div className="stock-kpi-value">{stats.activeWarehouses}</div>
-          <div className="stock-kpi-label">Active warehouses</div>
+          <div className="stock-kpi-label">{t("stock.activeWarehouses")}</div>
         </div>
       </div>
 
@@ -462,7 +466,7 @@ export default function StockPage() {
           <input
             type="text"
             className="stock-search-input"
-            placeholder="Search product name, SKU..."
+            placeholder={t("stock.search")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -474,7 +478,7 @@ export default function StockPage() {
           value={selectedWarehouse}
           onChange={(e) => setSelectedWarehouse(e.target.value)}
         >
-          <option value="All Warehouses">All Warehouses</option>
+          <option value="All Warehouses">{t("stock.allWarehouses")}</option>
           {WAREHOUSE_LIST.map((wh) => (
             <option key={wh} value={wh}>
               {wh}
@@ -488,10 +492,10 @@ export default function StockPage() {
           value={selectedStatus}
           onChange={(e) => setSelectedStatus(e.target.value)}
         >
-          <option value="All Status">All Status</option>
-          <option value="Active">Active</option>
-          <option value="Low Stock">Low Stock</option>
-          <option value="Out of Stock">Out of Stock</option>
+          <option value="All Status">{t("stock.allStatus")}</option>
+          <option value="Active">{tx("stockLevel", "Active")}</option>
+          <option value="Low Stock">{tx("stockLevel", "Low Stock")}</option>
+          <option value="Out of Stock">{tx("stockLevel", "Out of Stock")}</option>
         </select>
       </div>
 
@@ -500,11 +504,11 @@ export default function StockPage() {
         <table className="stock-table">
           <thead>
             <tr>
-              <th style={{ width: "32%" }}>PRODUCT</th>
-              <th style={{ width: "22%" }}>CATEGORY</th>
-              <th style={{ width: "14%" }}>WAREHOUSES</th>
-              <th style={{ width: "14%" }}>ON HAND</th>
-              <th style={{ width: "12%" }}>STATUS</th>
+              <th style={{ width: "32%" }}>{t("col.product")}</th>
+              <th style={{ width: "22%" }}>{t("col.category")}</th>
+              <th style={{ width: "14%" }}>{t("col.warehouses")}</th>
+              <th style={{ width: "14%" }}>{t("col.onHand")}</th>
+              <th style={{ width: "12%" }}>{t("col.status")}</th>
               <th style={{ width: "6%", textAlign: "right" }}></th>
             </tr>
           </thead>
@@ -513,12 +517,12 @@ export default function StockPage() {
               <tr>
                 <td colSpan={6} style={{ textAlign: "center", padding: "48px 24px", color: "#6b7280" }}>
                   {live.loading && !live.loaded
-                    ? "Loading stock…"
+                    ? t("stock.loading")
                     : live.error
                       ? live.error
                       : products.length === 0
-                        ? "No stock yet. Create a product to get started."
-                        : "No stock items match your search or filter criteria."}
+                        ? t("stock.empty")
+                        : t("stock.noMatch")}
                 </td>
               </tr>
             ) : (
@@ -555,15 +559,15 @@ export default function StockPage() {
                             {item.name}
                           </span>
                         </Link>
-                        <span className="stock-prod-sku">SKU: {item.sku}</span>
+                        <span className="stock-prod-sku">{t("stock.sku", { sku: item.sku })}</span>
                         {item.variants.length > 0 && (
                           <SearchSelect
                             className="stock-variant-select"
-                            aria-label={`Variant of ${item.name}`}
+                            aria-label={t("stock.variantOf", { name: item.name })}
                             value={variantPick[item.id] ?? ""}
                             onChange={(e) => setVariantPick((cur) => ({ ...cur, [item.id]: e.target.value }))}
                           >
-                            <option value="">All variants ({item.variants.length})</option>
+                            <option value="">{t("stock.allVariants", { n: item.variants.length })}</option>
                             {item.variants.map((v) => (
                               <option key={v.id} value={v.id}>
                                 {v.name || v.code}
@@ -603,17 +607,17 @@ export default function StockPage() {
                           : "out"
                       }`}
                     >
-                      {item.status}
+                      {tx("stockLevel", item.status)}
                     </span>
                   </td>
 
                   {/* View Details Action Button */}
                   <td style={{ textAlign: "right" }}>
-                    <Tooltip title="View product stock details">
+                    <Tooltip title={t("stock.viewTip")}>
                       <Link
                         href={`/stock/${item.id}`}
                         className="stock-view-btn"
-                        aria-label={`View details for ${item.name}`}
+                        aria-label={t("stock.viewAria", { name: item.name })}
                       >
                         <EyeOutlined style={{ fontSize: 14 }} />
                       </Link>

@@ -8,8 +8,7 @@ import { errorText } from "@/components/common/live-state";
 import { fetchDashboard, type DashboardSummary } from "@/features/dashboard/dashboard-live";
 import { fetchRequests, type LiveRequest } from "@/features/requests/requests-live";
 import { useLiveStock } from "@/features/stock/stock-live";
-
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { useT, useTx, type MessageKey } from "@/lib/i18n";
 
 function money(n: number): string {
   return `$${Math.round(n).toLocaleString("en-US")}`;
@@ -21,6 +20,8 @@ function percent(part: number, whole: number): string {
 
 export default function DashboardHome() {
   const { user } = useAuth();
+  const t = useT();
+  const tx = useTx();
   const { history, load: loadStock } = useLiveStock();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [requests, setRequests] = useState<LiveRequest[]>([]);
@@ -29,12 +30,13 @@ export default function DashboardHome() {
   useEffect(() => {
     fetchDashboard()
       .then(setSummary)
-      .catch((e) => setError(errorText(e, "Couldn't load the dashboard numbers.")));
+      .catch((e) => setError(errorText(e, t("dash.loadError"))));
     // Requests and stock history need their own permissions; the page still works without them.
     fetchRequests()
       .then((rows) => setRequests(rows.slice(0, 4)))
       .catch(() => setRequests([]));
     void loadStock();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadStock]);
 
   const k = summary?.kpis;
@@ -43,28 +45,28 @@ export default function DashboardHome() {
   const stats = [
     {
       value: v(k?.requests.pendingRequests),
-      label: "New requests",
-      change: k ? `${k.requests.pendingStockOut} out · ${k.requests.pendingTransfer} transfer` : "",
+      label: t("dash.newRequests"),
+      change: k ? t("dash.reqChange", { out: k.requests.pendingStockOut, transfer: k.requests.pendingTransfer }) : "",
       icon: <InboxOutlined />,
       red: (k?.requests.pendingRequests ?? 0) > 0,
     },
     {
       value: v(k?.orders.confirmedOrders),
-      label: "Confirmed orders",
-      change: k ? `${k.orders.deliveredOrders} delivered` : "",
+      label: t("dash.confirmedOrders"),
+      change: k ? t("dash.delivered", { n: k.orders.deliveredOrders }) : "",
       icon: <CheckCircleOutlined />,
     },
     {
       value: v(k?.inventory.totalProducts),
-      label: "Total products",
-      change: k ? `${k.inventory.lowStockCount} low stock` : "",
+      label: t("dash.totalProducts"),
+      change: k ? t("dash.lowStockN", { n: k.inventory.lowStockCount }) : "",
       icon: <DatabaseOutlined />,
       red: (k?.inventory.lowStockCount ?? 0) > 0,
     },
     {
       value: v(k?.inventory.totalWarehouses),
-      label: "Active warehouses",
-      change: k ? `${k.inventory.totalStockQuantity.toLocaleString("en-US")} units` : "",
+      label: t("dash.activeWarehouses"),
+      change: k ? t("dash.units", { n: k.inventory.totalStockQuantity.toLocaleString("en-US") }) : "",
       icon: <ShopOutlined />,
       neutral: true,
     },
@@ -76,7 +78,7 @@ export default function DashboardHome() {
       const d = new Date();
       d.setHours(0, 0, 0, 0);
       d.setDate(d.getDate() - (6 - i));
-      return { key: d.toDateString(), label: DAY_LABELS[d.getDay()], inQty: 0, outQty: 0 };
+      return { key: d.toDateString(), label: t(`dash.day.${d.getDay()}` as MessageKey), inQty: 0, outQty: 0 };
     });
     for (const h of history) {
       const day = days.find((d) => d.key === new Date(h.timestamp).toDateString());
@@ -86,15 +88,15 @@ export default function DashboardHome() {
     }
     const max = Math.max(1, ...days.flatMap((d) => [d.inQty, d.outQty]));
     return days.map((d) => ({ ...d, inPct: (d.inQty / max) * 100, outPct: (d.outQty / max) * 100 }));
-  }, [history]);
+  }, [history, t]);
 
   const name = user?.firstName || user?.name?.split(" ")[0] || "";
 
   return (
     <div className="page-content dashboard-home">
       <div className="page-heading dashboard-heading">
-        <h1>Dashboard</h1>
-        <p>{name ? `Welcome back, ${name}. ` : "Welcome back. "}Here&apos;s what&apos;s happening today.</p>
+        <h1>{t("dash.title")}</h1>
+        <p>{name ? t("dash.welcomeName", { name }) : t("dash.welcome")}</p>
       </div>
       {error && <p role="alert" style={{ color: "#dc2626", margin: "0 0 12px" }}>{error}</p>}
       <div className="stats-grid">
@@ -112,15 +114,15 @@ export default function DashboardHome() {
       <div className="dashboard-grid">
         <Link href="/stock/transactions" className="panel-card dashboard-card">
           <div className="panel-header">
-            <span className="panel-title">Stock movement</span>
+            <span className="panel-title">{t("dash.stockMovement")}</span>
             <div className="legend">
               <span>
                 <i className="dot" />
-                In
+                {t("dash.in")}
               </span>
               <span>
                 <i className="dot light" />
-                Out
+                {t("dash.out")}
               </span>
             </div>
           </div>
@@ -128,8 +130,8 @@ export default function DashboardHome() {
             {week.map((d) => (
               <div className="chart-day" key={d.key}>
                 <div className="bars">
-                  <div className="bar" style={{ height: `${Math.max(d.inPct, d.inQty > 0 ? 4 : 0)}%` }} title={`${d.inQty} in`} />
-                  <div className="bar light" style={{ height: `${Math.max(d.outPct, d.outQty > 0 ? 4 : 0)}%` }} title={`${d.outQty} out`} />
+                  <div className="bar" style={{ height: `${Math.max(d.inPct, d.inQty > 0 ? 4 : 0)}%` }} title={t("dash.inN", { n: d.inQty })} />
+                  <div className="bar light" style={{ height: `${Math.max(d.outPct, d.outQty > 0 ? 4 : 0)}%` }} title={t("dash.outN", { n: d.outQty })} />
                 </div>
                 <div className="day-label">{d.label}</div>
               </div>
@@ -138,15 +140,15 @@ export default function DashboardHome() {
         </Link>
         <Link href="/requests" className="panel-card dashboard-card">
           <div className="panel-header">
-            <span className="panel-title">Recent requests</span>
-            <span className="panel-action">See all</span>
+            <span className="panel-title">{t("dash.recentRequests")}</span>
+            <span className="panel-action">{t("dash.seeAll")}</span>
           </div>
           <table className="request-table">
             <thead>
               <tr>
-                <th>REQUESTER</th>
-                <th>ROUTE</th>
-                <th>STATUS</th>
+                <th>{t("col.requester")}</th>
+                <th>{t("col.route")}</th>
+                <th>{t("col.status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -157,14 +159,14 @@ export default function DashboardHome() {
                   </td>
                   <td>{request.route}</td>
                   <td>
-                    <span className={`status-pill ${request.status.toLowerCase()}`}>{request.status}</span>
+                    <span className={`status-pill ${request.status.toLowerCase()}`}>{tx("status", request.status)}</span>
                   </td>
                 </tr>
               ))}
               {requests.length === 0 && (
                 <tr>
                   <td colSpan={3} style={{ color: "var(--muted)" }}>
-                    No requests yet.
+                    {t("dash.noRequests")}
                   </td>
                 </tr>
               )}
@@ -173,12 +175,12 @@ export default function DashboardHome() {
         </Link>
       </div>
       <div className="metrics-row">
-        <Metric value={k ? money(k.revenue.unpaidRevenue) : "—"} label="Unpaid revenue" />
-        <Metric value={k ? money(k.inventory.totalStockValue) : "—"} label="Stock value" />
-        <Metric value={k ? percent(k.orders.deliveredOrders, k.orders.totalOrders) : "—"} label="Delivery rate" ring />
+        <Metric value={k ? money(k.revenue.unpaidRevenue) : "—"} label={t("dash.unpaidRevenue")} />
+        <Metric value={k ? money(k.inventory.totalStockValue) : "—"} label={t("dash.stockValue")} />
+        <Metric value={k ? percent(k.orders.deliveredOrders, k.orders.totalOrders) : "—"} label={t("dash.deliveryRate")} ring />
         <Metric
           value={k ? percent(k.inventory.totalProducts - k.inventory.lowStockCount - k.inventory.outOfStockCount, k.inventory.totalProducts) : "—"}
-          label="In-stock rate"
+          label={t("dash.inStockRate")}
           ring
           green
         />

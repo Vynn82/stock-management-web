@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "@/providers/ThemeProvider";
+import { translate, useLocaleStore } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { api, ApiError } from "@/features/live/http";
 
@@ -113,7 +114,9 @@ export default function SettingsPage({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // General settings state
-  const [language, setLanguage] = useState("English");
+  const locale = useLocaleStore((s) => s.locale);
+  const setLocale = useLocaleStore((s) => s.setLocale);
+  const language = locale === "km" ? "Khmer (ខ្មែរ)" : "English";
   const [timezone, setTimezone] = useState("(UTC+07:00) Phnom Penh");
   const [dateFormat, setDateFormat] = useState("DD.MM.YYYY");
 
@@ -784,9 +787,14 @@ export default function SettingsPage({
                             language === l ? "selected" : ""
                           }`}
                           onClick={() => {
-                            setLanguage(l);
                             setLangOpen(false);
-                            showToast(`Language set to ${l}`);
+                            if (l === "English" || l.startsWith("Khmer")) {
+                              const next = l === "English" ? "en" : "km";
+                              setLocale(next);
+                              showToast(translate(next, "settings.langSet", { lang: l }));
+                            } else {
+                              showToast(translate(locale, "settings.langSoon", { lang: l }));
+                            }
                           }}
                         >
                           <span>{l}</span>

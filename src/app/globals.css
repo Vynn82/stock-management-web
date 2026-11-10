@@ -11798,3 +11798,13 @@ button, input { font-family: inherit; }
 .po-line-compare-btn:hover{text-decoration:underline}
 .theme-dark .po-supplier-hint{background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.3);color:#DDD6FE}
 .theme-dark .po-line-compare-btn{color:#A78BFA}
+
+/* Language switcher (header) and Khmer typography */
+.locale-switch { display: inline-flex; padding: 3px; border-radius: 9px; background: rgba(109,40,217,.08); }
+.locale-switch button { height: 28px; padding: 0 11px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s ease, color .15s ease; }
+.locale-switch button:hover { color: var(--purple); }
+.locale-switch button.active { background: #fff; color: #6d28d9; box-shadow: 0 1px 3px rgba(45,34,77,.14); }
+.theme-dark .locale-switch { background: rgba(255,255,255,.07); }
+.theme-dark .locale-switch button.active { background: #2a2540; color: #d1bdff; box-shadow: none; }
+html[lang="km"] body { font-family: "Kantumruy Pro", "Noto Sans Khmer", Inter, sans-serif; line-height: 1.6; }
+html[lang="km"] button, html[lang="km"] input, html[lang="km"] select, html[lang="km"] textarea { font-family: inherit; }
