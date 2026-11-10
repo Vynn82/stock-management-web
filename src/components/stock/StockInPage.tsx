@@ -4,7 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { message } from "antd";
-import { useLiveStock } from "@/features/stock/stock-live";
+import { REQUEST_SENT_MESSAGE, useLiveStock } from "@/features/stock/stock-live";
+import { useNeedsApproval } from "@/hooks/use-needs-approval";
 import SearchSelect from "@/components/ui/SearchSelect";
 
 import BackButton from "@/components/ui/BackButton";
@@ -81,6 +82,8 @@ export default function StockInPage({ productId }: { productId?: string }) {
   }, [product, variant, warehouseCode]);
   const afterStock = currentStock + (quantity || 0);
 
+  const askFirst = useNeedsApproval("STOCK_ADJUST");
+
   const handleConfirm = async () => {
     if (!product) return;
     if (!warehouseCode) return void messageApi.error("Choose the warehouse the stock goes into.");
@@ -90,7 +93,12 @@ export default function StockInPage({ productId }: { productId?: string }) {
     setSubmitting(true);
     try {
       const reasonText = notes.trim() ? `${reason} — ${notes.trim()}` : reason;
-      await live.stockIn(product, warehouseCode, quantity, reasonText, variant?.code);
+      const outcome = await live.stockIn(product, warehouseCode, quantity, reasonText, variant?.code);
+      if (outcome === "requested") {
+        messageApi.success(REQUEST_SENT_MESSAGE);
+        setTimeout(() => router.push("/requests"), 900);
+        return;
+      }
       messageApi.success(`Added ${quantity} units of ${variant ? `${product.name} (${variant.name})` : product.name} to ${warehouseName}.`);
       setTimeout(() => router.push("/stock"), 700);
     } catch (err) {
@@ -311,7 +319,7 @@ export default function StockInPage({ productId }: { productId?: string }) {
             Cancel
           </button>
           <button type="button" className="stock-out-btn-confirm" onClick={handleConfirm} disabled={submitting}>
-            {submitting ? "Processing..." : "Confirm Stock In"}
+            {submitting ? "Processing..." : askFirst ? "Submit Request" : "Confirm Stock In"}
           </button>
         </div>
       </div>

@@ -66,6 +66,15 @@ export default function DashboardShell({
   const t = useT();
   const { user, token, logout } = useAuth();
   const roleName = user?.role || user?.roles?.[0];
+  // Header avatar follows the signed-in profile: photo if there is one, otherwise initials.
+  const avatarUrl = user?.avatar || user?.profile?.avatar || null;
+  const initials = (() => {
+    const full = (user?.name || [user?.firstName ?? user?.profile?.firstName, user?.lastName ?? user?.profile?.lastName].filter(Boolean).join(" ") || user?.staffId || "").trim();
+    const parts = full.split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  })();
   // No saved login (never signed in, or the session could not be renewed): go to sign-in.
   useEffect(() => {
     if (!token) router.replace("/auth/login");
@@ -299,7 +308,14 @@ export default function DashboardShell({
                     inputReadOnly
                     aria-label={t("header.selectDateRange")}
                   />
-                  <button type="button" className="avatar avatar-button" aria-label={t("header.openProfile")} title={t("header.profile")} onClick={() => router.push("/settings/profile")}>VK</button>
+                  <button type="button" className="avatar avatar-button" aria-label={t("header.openProfile")} title={t("header.profile")} onClick={() => router.push("/settings/profile")} style={{ overflow: "hidden" }}>
+                    {avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      initials
+                    )}
+                  </button>
                 </div>
               )}
             </header>

@@ -233,6 +233,8 @@ export interface NewStockRequestInput {
   /** Only for STOCK_ADJUSTMENT. */
   adjustmentType?: "INCREASE" | "DECREASE";
   productCode: string;
+  /** Stock In of a product that has variants. */
+  variantCode?: string;
   quantity: number;
   fromWarehouseCode: string;
   toWarehouseCode?: string;
@@ -281,6 +283,7 @@ export async function createStockRequest(input: NewStockRequestInput): Promise<L
           }
         : {
             productCode: input.productCode,
+            ...(input.variantCode ? { variantCode: input.variantCode } : {}),
             warehouseCode: input.fromWarehouseCode,
             quantity: input.quantity,
             reason: input.remark || undefined,

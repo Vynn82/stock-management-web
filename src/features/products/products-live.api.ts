@@ -112,8 +112,12 @@ export interface NewVariantInput {
   image: File;
 }
 
-/** `POST /products` (multipart: product / variants / stock JSON + image). */
-export async function createProduct(input: NewProductInput): Promise<void> {
+/**
+ * `POST /products` (multipart: product / variants / stock JSON + image).
+ * With `asRequest` the same form is sent to `POST /requests` as a PRODUCT_CREATE request,
+ * so the product is only created once it is approved (for people without PRODUCT_CREATE).
+ */
+export async function createProduct(input: NewProductInput, asRequest = false): Promise<void> {
   const product: Record<string, unknown> = {
     productName: input.name.trim(),
     categoryCode: input.categoryCode,
@@ -154,6 +158,7 @@ export async function createProduct(input: NewProductInput): Promise<void> {
   }
 
   const form = new FormData();
+  if (asRequest) form.append("requestType", "PRODUCT_CREATE");
   form.append("product", JSON.stringify(product));
   form.append("variants", JSON.stringify(variants));
   form.append("stock", JSON.stringify(stocks));
@@ -161,7 +166,7 @@ export async function createProduct(input: NewProductInput): Promise<void> {
   if (hasVariants) {
     input.variants!.forEach((v, i) => form.append(`variantImage[V${i + 1}]`, v.image));
   }
-  await api.postForm("products", form);
+  await api.postForm(asRequest ? "requests" : "products", form);
 }
 
 export interface ProductDetail {

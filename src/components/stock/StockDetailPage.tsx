@@ -11,6 +11,8 @@ import {
 import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
 import Can from "@/components/common/Can";
+import { REQUEST_SENT_MESSAGE } from "@/features/stock/stock-live";
+import { useNeedsApproval } from "@/hooks/use-needs-approval";
 import SearchSelect from "@/components/ui/SearchSelect";
 
 import BackButton from "@/components/ui/BackButton";
@@ -19,6 +21,8 @@ interface StockDetailPageProps {
 }
 
 function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
+  const askStock = useNeedsApproval("STOCK_ADJUST");
+  const askTransfer = useNeedsApproval("STOCK_TRANSFER");
   const {
     items,
     getItem,
@@ -119,7 +123,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
       return;
     }
     try {
-      await recordTransfer(
+      const outcome = await recordTransfer(
         product.id,
         sourceWarehouse,
         targetWarehouse,
@@ -127,7 +131,9 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
         actionReason || "Inter-warehouse transfer"
       );
       messageApi.success(
-        `Transferred ${actionQty} units from ${sourceWarehouse} to ${targetWarehouse}.`
+        outcome === "requested"
+          ? REQUEST_SENT_MESSAGE
+          : `Transferred ${actionQty} units from ${sourceWarehouse} to ${targetWarehouse}.`
       );
       setActiveModal("none");
     } catch (err) {
@@ -146,14 +152,16 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
 
   const handleExecuteAdjust = async () => {
     try {
-      await recordAdjustment(
+      const outcome = await recordAdjustment(
         product.id,
         sourceWarehouse,
         adjustCount,
         actionReason || "Physical inventory count"
       );
       messageApi.success(
-        `Stock level for ${product.name} at ${sourceWarehouse} updated to ${adjustCount} units.`
+        outcome === "requested"
+          ? REQUEST_SENT_MESSAGE
+          : `Stock level for ${product.name} at ${sourceWarehouse} updated to ${adjustCount} units.`
       );
       setActiveModal("none");
     } catch (err) {
@@ -183,14 +191,16 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
       return;
     }
     try {
-      await recordStockOut(
+      const outcome = await recordStockOut(
         product.id,
         sourceWarehouse,
         actionQty,
         actionReason || "Manual stock dispatch"
       );
       messageApi.success(
-        `Dispatched ${actionQty} units from ${sourceWarehouse}.`
+        outcome === "requested"
+          ? REQUEST_SENT_MESSAGE
+          : `Dispatched ${actionQty} units from ${sourceWarehouse}.`
       );
       setActiveModal("none");
     } catch (err) {
@@ -406,7 +416,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
 
             <div className="stock-quick-actions-col">
               {/* Button 1: Transfer (Solid Purple) */}
-              <Can any={"STOCK_TRANSFER"}><Link
+              <Can any={["STOCK_TRANSFER", "REQUEST_CREATE"]}><Link
                 href={`/stock/${product.id}/transfer`}
                 className="stock-btn-transfer"
                 style={{ textDecoration: "none" }}
@@ -430,7 +440,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
               </Link></Can>
 
               {/* Button 2: Adjust (White with dark border) */}
-              <Can any={"STOCK_ADJUST"}><Link
+              <Can any={["STOCK_ADJUST", "REQUEST_CREATE"]}><Link
                 href={`/stock/${product.id}/adjust`}
                 className="stock-btn-adjust"
                 style={{ textDecoration: "none" }}
@@ -453,7 +463,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
               </Link></Can>
 
               {/* Stock In: its own page, like Stock Out */}
-              <Can any={"STOCK_ADJUST"}><Link
+              <Can any={["STOCK_ADJUST", "REQUEST_CREATE"]}><Link
                 href={`/stock/${product.id}/stock-in`}
                 className="stock-action-btn"
                 style={{ textDecoration: "none" }}
@@ -466,7 +476,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
               </Link></Can>
 
               {/* Button 3: Stock Out (Red border & text) */}
-              <Can any={"STOCK_ADJUST"}><Link
+              <Can any={["STOCK_ADJUST", "REQUEST_CREATE"]}><Link
                 href={`/stock/${product.id}/stock-out`}
                 className="stock-btn-stockout"
                 style={{ textDecoration: "none" }}
@@ -611,7 +621,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
         open={activeModal === "transfer"}
         onOk={handleExecuteTransfer}
         onCancel={() => setActiveModal("none")}
-        okText="Confirm Transfer"
+        okText={askTransfer ? "Submit Request" : "Confirm Transfer"}
         okButtonProps={{ style: { background: "#6d28d9", borderColor: "#6d28d9" } }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
@@ -705,7 +715,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
         open={activeModal === "adjust"}
         onOk={handleExecuteAdjust}
         onCancel={() => setActiveModal("none")}
-        okText="Save Adjustment"
+        okText={askStock ? "Submit Request" : "Save Adjustment"}
         okButtonProps={{ style: { background: "#6d28d9", borderColor: "#6d28d9" } }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
@@ -820,7 +830,7 @@ function StockDetailPageInner({ productId = "1" }: StockDetailPageProps) {
         open={activeModal === "stockOut"}
         onOk={handleExecuteStockOut}
         onCancel={() => setActiveModal("none")}
-        okText="Confirm Stock Out"
+        okText={askStock ? "Submit Request" : "Confirm Stock Out"}
         okButtonProps={{ style: { background: "#ef4444", borderColor: "#ef4444" } }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>

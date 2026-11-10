@@ -35,6 +35,16 @@ export function hasPermission(
 }
 
 /**
+ * True when this person must send a request for approval instead of changing
+ * stock / products directly (they lack the permission but may still raise requests).
+ * With permissions not delivered yet (old session) we assume direct; the server enforces it.
+ */
+export function needsApproval(user: User | null, permission: string): boolean {
+  if (!user || user.permissions === undefined) return false;
+  return !hasPermission(user, permission);
+}
+
+/**
  * Check if a user has any of the specified permissions
  */
 export function hasAnyPermission(

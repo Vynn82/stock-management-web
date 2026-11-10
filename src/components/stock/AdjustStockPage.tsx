@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { message } from "antd";
 import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
+import { REQUEST_SENT_MESSAGE } from "@/features/stock/stock-live";
+import { useNeedsApproval } from "@/hooks/use-needs-approval";
 import SearchSelect from "@/components/ui/SearchSelect";
 
 import BackButton from "@/components/ui/BackButton";
@@ -44,6 +46,7 @@ function AdjustStockPageInner({ productId = "1" }: AdjustStockPageProps) {
   );
 
   const [submitting, setSubmitting] = useState(false);
+  const askFirst = useNeedsApproval("STOCK_ADJUST");
 
   // Warehouse options
   const warehouseOptions = useMemo(() => {
@@ -90,12 +93,18 @@ function AdjustStockPageInner({ productId = "1" }: AdjustStockPageProps) {
         ? `${reason} — ${notes.trim()}`
         : reason;
 
-      await recordAdjustment(
+      const outcome = await recordAdjustment(
         product.id,
         selectedWarehouse,
         newStock,
         reasonText
       );
+
+      if (outcome === "requested") {
+        messageApi.success(REQUEST_SENT_MESSAGE);
+        setTimeout(() => router.push("/requests"), 900);
+        return;
+      }
 
       messageApi.success(
         `Successfully adjusted stock for ${product.name} at ${selectedWarehouse}.`
@@ -434,7 +443,7 @@ function AdjustStockPageInner({ productId = "1" }: AdjustStockPageProps) {
             onClick={handleConfirmAdjustment}
             disabled={submitting}
           >
-            {submitting ? "Saving..." : "Confirm Adjustment"}
+            {submitting ? "Saving..." : askFirst ? "Submit Request" : "Confirm Adjustment"}
           </button>
         </div>
       </div>

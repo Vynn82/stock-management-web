@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { message } from "antd";
 import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
+import { REQUEST_SENT_MESSAGE } from "@/features/stock/stock-live";
+import { useNeedsApproval } from "@/hooks/use-needs-approval";
 import SearchSelect from "@/components/ui/SearchSelect";
 
 import BackButton from "@/components/ui/BackButton";
@@ -36,6 +38,7 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
     ""
   );
   const [submitting, setSubmitting] = useState(false);
+  const askFirst = useNeedsApproval("STOCK_TRANSFER");
 
   // Available warehouses list
   const warehouseOptions = useMemo(() => {
@@ -85,13 +88,18 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
 
     setSubmitting(true);
     try {
-      await recordTransfer(
+      const outcome = await recordTransfer(
         product.id,
         sourceWarehouse,
         targetWarehouse,
         transferQty,
         notes.trim() || "Stock Transfer"
       );
+      if (outcome === "requested") {
+        messageApi.success(REQUEST_SENT_MESSAGE);
+        setTimeout(() => router.push("/requests"), 900);
+        return;
+      }
       messageApi.success(
         `Successfully transferred ${transferQty} units to ${targetWarehouse}.`
       );
@@ -384,7 +392,7 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
             onClick={handleConfirmTransfer}
             disabled={submitting}
           >
-            {submitting ? "Transferring..." : "Confirm Transfer"}
+            {submitting ? "Transferring..." : askFirst ? "Submit Request" : "Confirm Transfer"}
           </button>
         </div>
       </div>

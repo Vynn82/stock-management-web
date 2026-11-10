@@ -114,7 +114,7 @@ export default function ProductsPage() {
           <Can any={"PRODUCT_IMPORT"}><Button onClick={() => setImportOpen(true)}>
             {t("prod.import")}
           </Button></Can>
-          <Can any={"PRODUCT_CREATE"}><Button type="primary" icon={<PlusOutlined />} onClick={() => router.push("/products/create")}>
+          <Can any={["PRODUCT_CREATE", "REQUEST_CREATE"]}><Button type="primary" icon={<PlusOutlined />} onClick={() => router.push("/products/create")}>
             {t("prod.create")}
           </Button></Can>
         </div>

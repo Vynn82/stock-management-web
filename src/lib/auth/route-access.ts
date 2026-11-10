@@ -13,11 +13,14 @@ interface Rule {
 
 const RULES: Rule[] = [
   { test: /^\/products\/[^/]+\/edit/, any: ["PRODUCT_EDIT"], feature: "Edit product" },
-  { test: /^\/products\/(create|add)/, any: ["PRODUCT_CREATE"], feature: "Create product" },
+  // Without PRODUCT_CREATE a person (Staff) can still open the form and send a request for approval.
+  { test: /^\/products\/(create|add)/, any: ["PRODUCT_CREATE", "REQUEST_CREATE"], feature: "Create product" },
   { test: /^\/products/, any: ["PRODUCT_VIEW"], feature: "Products" },
   { test: /^\/stock\/history/, any: ["ADJUSTMENT_VIEW"], feature: "Stock history" },
-  { test: /^\/stock\/(.*\/)?transfer/, any: ["STOCK_TRANSFER"], feature: "Stock transfer" },
-  { test: /^\/stock\/(.*\/)?(adjust|stock-out|stockout|reconcile)/, any: ["STOCK_ADJUST"], feature: "Stock adjustment" },
+  // Stock changes: people without the permission send a request for approval (REQUEST_CREATE).
+  { test: /^\/stock\/(.*\/)?transfer/, any: ["STOCK_TRANSFER", "REQUEST_CREATE"], feature: "Stock transfer" },
+  { test: /^\/stock\/(.*\/)?reconcile/, any: ["STOCK_ADJUST"], feature: "Stock reconcile" },
+  { test: /^\/stock\/(.*\/)?(adjust|stock-out|stockout|stock-in|stockin)/, any: ["STOCK_ADJUST", "REQUEST_CREATE"], feature: "Stock adjustment" },
   { test: /^\/stock/, any: ["STOCK_VIEW"], feature: "Stock" },
   { test: /^\/purchasing\/[^/]+\/edit/, any: ["PO_CREATE"], feature: "Edit purchase order" },
   { test: /^\/purchasing\/new/, any: ["PO_CREATE"], feature: "Create purchase order" },

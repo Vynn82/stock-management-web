@@ -8,6 +8,7 @@ import { ApiError } from "@/features/live/http";
 import { LookupOption, fetchBrands, fetchCategories, fetchSuppliers, fetchWarehouses } from "@/features/live/lookups";
 import { createProduct, NewVariantInput } from "@/features/products/products-live.api";
 import VariantImagePicker from "./VariantImagePicker";
+import { useNeedsApproval } from "@/hooks/use-needs-approval";
 import SearchSelect from "@/components/ui/SearchSelect";
 
 import BackButton from "@/components/ui/BackButton";
@@ -142,6 +143,8 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
   const [quantity, setQuantity] = useState("");
   const [location, setLocation] = useState("");
   const [saving, setSaving] = useState(false);
+  // Staff (no PRODUCT_CREATE) send the product as a request that waits for approval.
+  const askFirst = useNeedsApproval("PRODUCT_CREATE");
   const [submitted, setSubmitted] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
   const [variantRows, setVariantRows] = useState<VariantDraft[]>([]);
@@ -332,9 +335,9 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
         location,
         image: imageFile,
         variants: variantInputs,
-      });
-      messageApi.success("Product created.");
-      setTimeout(() => (onSuccess ? onSuccess() : router.push("/products")), 400);
+      }, askFirst);
+      messageApi.success(askFirst ? "Request sent for approval. The product is created once it is approved. Track it under Requests." : "Product created.");
+      setTimeout(() => (onSuccess ? onSuccess() : router.push(askFirst ? "/requests" : "/products")), askFirst ? 900 : 400);
     } catch (err) {
       messageApi.error(err instanceof ApiError ? err.message : "Could not save the product.");
       setSaving(false);
@@ -702,7 +705,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
             Cancel
           </button>
           <button type="button" className="btn-add-product-save" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save Product"}
+            {saving ? "Saving…" : askFirst ? "Submit Request" : "Save Product"}
           </button>
         </div>
       </div>

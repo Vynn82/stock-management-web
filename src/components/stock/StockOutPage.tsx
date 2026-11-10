@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { message } from "antd";
 import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
+import { REQUEST_SENT_MESSAGE } from "@/features/stock/stock-live";
+import { useNeedsApproval } from "@/hooks/use-needs-approval";
 import SearchSelect from "@/components/ui/SearchSelect";
 
 import BackButton from "@/components/ui/BackButton";
@@ -41,6 +43,7 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
   );
 
   const [submitting, setSubmitting] = useState(false);
+  const askFirst = useNeedsApproval("STOCK_ADJUST");
 
   // Warehouse options
   const warehouseOptions = useMemo(() => {
@@ -78,12 +81,18 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
         ? `${reason} — ${notes.trim()}`
         : reason;
 
-      await recordStockOut(
+      const outcome = await recordStockOut(
         product.id,
         selectedWarehouse,
         quantity,
         reasonText
       );
+
+      if (outcome === "requested") {
+        messageApi.success(REQUEST_SENT_MESSAGE);
+        setTimeout(() => router.push("/requests"), 900);
+        return;
+      }
 
       messageApi.success(
         `Successfully recorded stock out of ${quantity} units for ${product.name}.`
@@ -404,7 +413,7 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
             onClick={handleConfirmStockOut}
             disabled={submitting}
           >
-            {submitting ? "Processing..." : "Confirm Stock Out"}
+            {submitting ? "Processing..." : askFirst ? "Submit Request" : "Confirm Stock Out"}
           </button>
         </div>
       </div>

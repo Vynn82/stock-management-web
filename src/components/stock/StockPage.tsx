@@ -14,6 +14,8 @@ import {
 import Can from "@/components/common/Can";
 import SearchSelect from "@/components/ui/SearchSelect";
 import { useT, useTx } from "@/lib/i18n";
+import { REQUEST_SENT_MESSAGE, type StockOutcome } from "@/features/stock/stock-live";
+import { useNeedsApproval } from "@/hooks/use-needs-approval";
 
 export type WarehouseStock = LiveWarehouseStock;
 export type StockProduct = LiveStockProduct;
@@ -22,6 +24,8 @@ export type StockHistoryEntry = LiveHistoryEntry;
 export default function StockPage() {
   const t = useT();
   const tx = useTx();
+  const askStock = useNeedsApproval("STOCK_ADJUST");
+  const askTransfer = useNeedsApproval("STOCK_TRANSFER");
   const live = useLiveStock();
   const { products, history } = live;
   const WAREHOUSE_LIST = useMemo(() => live.warehouses.map((w) => w.name), [live.warehouses]);
@@ -138,12 +142,12 @@ export default function StockPage() {
   };
 
   // Runs one stock action against the API, then reloads the stock.
-  const run = async (action: () => Promise<void>, success: string) => {
+  const run = async (action: () => Promise<StockOutcome>, success: string) => {
     if (saving) return;
     setSaving(true);
     try {
-      await action();
-      messageApi.success(success);
+      const outcome = await action();
+      messageApi.success(outcome === "requested" ? REQUEST_SENT_MESSAGE : success);
       setActiveModal("none");
     } catch (err) {
       messageApi.error(err instanceof Error ? err.message : "Could not save. Please try again.");
@@ -238,7 +242,7 @@ export default function StockPage() {
           </Link>
 
           {/* Stock In */}
-          <Can any={"STOCK_ADJUST"}><button
+          <Can any={["STOCK_ADJUST", "REQUEST_CREATE"]}><button
             type="button"
             className="stock-action-btn"
             onClick={() => handleOpenStockIn()}
@@ -260,7 +264,7 @@ export default function StockPage() {
           </button></Can>
 
           {/* Stock Out */}
-          <Can any={"STOCK_ADJUST"}><Link
+          <Can any={["STOCK_ADJUST", "REQUEST_CREATE"]}><Link
             href="/stock/stock-out"
             className="stock-action-btn"
             style={{ textDecoration: "none" }}
@@ -282,7 +286,7 @@ export default function StockPage() {
           </Link></Can>
 
           {/* Transfer */}
-          <Can any={"STOCK_TRANSFER"}><Link
+          <Can any={["STOCK_TRANSFER", "REQUEST_CREATE"]}><Link
             href="/stock/transfer"
             className="stock-action-btn"
             style={{ textDecoration: "none" }}
@@ -306,7 +310,7 @@ export default function StockPage() {
           </Link></Can>
 
           {/* Adjust - Solid Purple Button */}
-          <Can any={"STOCK_ADJUST"}><Link
+          <Can any={["STOCK_ADJUST", "REQUEST_CREATE"]}><Link
             href="/stock/adjust"
             className="stock-action-btn-primary"
             style={{ textDecoration: "none" }}
@@ -654,7 +658,7 @@ export default function StockPage() {
         open={activeModal === "stockIn"}
         onOk={executeStockIn}
         onCancel={() => setActiveModal("none")}
-        okText="Add to Inventory"
+        okText={askStock ? "Submit Request" : "Add to Inventory"}
         okButtonProps={{ style: { background: "#6d28d9", borderColor: "#6d28d9" } }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
@@ -768,7 +772,7 @@ export default function StockPage() {
         open={activeModal === "stockOut"}
         onOk={executeStockOut}
         onCancel={() => setActiveModal("none")}
-        okText="Dispatch Stock"
+        okText={askStock ? "Submit Request" : "Dispatch Stock"}
         okButtonProps={{ style: { background: "#ef4444", borderColor: "#ef4444" } }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
@@ -886,7 +890,7 @@ export default function StockPage() {
         open={activeModal === "transfer"}
         onOk={executeTransfer}
         onCancel={() => setActiveModal("none")}
-        okText="Transfer Stock"
+        okText={askTransfer ? "Submit Request" : "Transfer Stock"}
         okButtonProps={{ style: { background: "#6d28d9", borderColor: "#6d28d9" } }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
@@ -1029,7 +1033,7 @@ export default function StockPage() {
         open={activeModal === "adjust"}
         onOk={executeAdjustment}
         onCancel={() => setActiveModal("none")}
-        okText="Save Adjustment"
+        okText={askStock ? "Submit Request" : "Save Adjustment"}
         okButtonProps={{ style: { background: "#6d28d9", borderColor: "#6d28d9" } }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
