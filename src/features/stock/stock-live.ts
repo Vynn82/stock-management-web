@@ -2,7 +2,10 @@ import { create } from "zustand";
 import { api } from "@/features/live/http";
 import { LookupOption, fetchWarehouses } from "@/features/live/lookups";
 import { listAll } from "@/features/live/http";
-import { createStockRequest } from "@/features/requests/requests-live";
+import { createStockRequest, type NewStockRequestInput } from "@/features/requests/requests-live";
+
+/** The approval chain a requester picked (only used when the action becomes a request). */
+export type ChainSteps = NewStockRequestInput["approvers"];
 import { useAuthStore } from "@/store/authStore";
 import { needsApproval } from "@/lib/auth/permissions";
 
@@ -186,11 +189,11 @@ interface LiveStockState {
   /** Loads once; pass `force` to reload after a change. */
   load: (force?: boolean) => Promise<void>;
   /** Everything below throws `ApiError` — show its message. */
-  stockIn: (p: LiveStockProduct, warehouseCode: string, qty: number, reason: string, variantCode?: string) => Promise<StockOutcome>;
-  stockOut: (p: LiveStockProduct, warehouseCode: string, qty: number, reason: string) => Promise<StockOutcome>;
-  transfer: (p: LiveStockProduct, fromCode: string, toCode: string, qty: number, reason: string) => Promise<StockOutcome>;
+  stockIn: (p: LiveStockProduct, warehouseCode: string, qty: number, reason: string, variantCode?: string, approvers?: ChainSteps) => Promise<StockOutcome>;
+  stockOut: (p: LiveStockProduct, warehouseCode: string, qty: number, reason: string, approvers?: ChainSteps) => Promise<StockOutcome>;
+  transfer: (p: LiveStockProduct, fromCode: string, toCode: string, qty: number, reason: string, approvers?: ChainSteps) => Promise<StockOutcome>;
   /** Sets the counted quantity for one warehouse (sends the difference). */
-  setCount: (p: LiveStockProduct, warehouseCode: string, newCount: number, reason: string) => Promise<StockOutcome>;
+  setCount: (p: LiveStockProduct, warehouseCode: string, newCount: number, reason: string, approvers?: ChainSteps) => Promise<StockOutcome>;
 }
 
 export const useLiveStock = create<LiveStockState>((set, get) => ({
@@ -217,7 +220,7 @@ export const useLiveStock = create<LiveStockState>((set, get) => ({
     }
   },
 
-  stockIn: async (p, warehouseCode, qty, reason, variantCode) => {
+  stockIn: async (p, warehouseCode, qty, reason, variantCode, approvers) => {
     if (mustAsk("STOCK_ADJUST")) {
       await createStockRequest({
         type: "STOCK_IN",
@@ -226,6 +229,7 @@ export const useLiveStock = create<LiveStockState>((set, get) => ({
         quantity: qty,
         fromWarehouseCode: warehouseCode,
         remark: reason.trim() || "Stock in",
+        approvers,
       });
       return "requested";
     }
@@ -242,7 +246,7 @@ export const useLiveStock = create<LiveStockState>((set, get) => ({
     return "done";
   },
 
-  stockOut: async (p, warehouseCode, qty, reason) => {
+  stockOut: async (p, warehouseCode, qty, reason, approvers) => {
     if (mustAsk("STOCK_ADJUST")) {
       await createStockRequest({
         type: "STOCK_OUT",
@@ -250,6 +254,7 @@ export const useLiveStock = create<LiveStockState>((set, get) => ({
         quantity: qty,
         fromWarehouseCode: warehouseCode,
         remark: reason.trim() || "Stock out",
+        approvers,
       });
       return "requested";
     }
@@ -265,7 +270,7 @@ export const useLiveStock = create<LiveStockState>((set, get) => ({
     return "done";
   },
 
-  transfer: async (p, fromCode, toCode, qty, reason) => {
+  transfer: async (p, fromCode, toCode, qty, reason, approvers) => {
     if (mustAsk("STOCK_TRANSFER")) {
       await createStockRequest({
         type: "STOCK_TRANSFER",
@@ -274,6 +279,7 @@ export const useLiveStock = create<LiveStockState>((set, get) => ({
         fromWarehouseCode: fromCode,
         toWarehouseCode: toCode,
         remark: reason.trim() || "Warehouse transfer",
+        approvers,
       });
       return "requested";
     }
@@ -292,7 +298,7 @@ export const useLiveStock = create<LiveStockState>((set, get) => ({
     return "done";
   },
 
-  setCount: async (p, warehouseCode, newCount, reason) => {
+  setCount: async (p, warehouseCode, newCount, reason, approvers) => {
     const current = p.warehouses.find((w) => w.code === warehouseCode)?.qty ?? 0;
     const diff = newCount - current;
     if (diff === 0) throw new Error("The counted quantity equals the current stock. Nothing to adjust.");
@@ -304,6 +310,7 @@ export const useLiveStock = create<LiveStockState>((set, get) => ({
         quantity: Math.abs(diff),
         fromWarehouseCode: warehouseCode,
         remark: reason.trim() || "Physical inventory count",
+        approvers,
       });
       return "requested";
     }

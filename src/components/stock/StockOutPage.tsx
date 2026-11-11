@@ -8,6 +8,8 @@ import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
 import { REQUEST_SENT_MESSAGE } from "@/features/stock/stock-live";
 import { useNeedsApproval } from "@/hooks/use-needs-approval";
+import { useApprovalChain } from "@/features/requests/use-approval-chain";
+import ApprovalChainCard, { CHAIN_HELP_STOCK } from "@/components/requests/ApprovalChainCard";
 import SearchSelect from "@/components/ui/SearchSelect";
 
 import BackButton from "@/components/ui/BackButton";
@@ -44,6 +46,7 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
 
   const [submitting, setSubmitting] = useState(false);
   const askFirst = useNeedsApproval("STOCK_ADJUST");
+  const chain = useApprovalChain(askFirst);
 
   // Warehouse options
   const warehouseOptions = useMemo(() => {
@@ -75,6 +78,14 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
       return;
     }
 
+    if (askFirst) {
+      const chainError = chain.validate();
+      if (chainError) {
+        messageApi.error(chainError);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const reasonText = notes.trim()
@@ -85,7 +96,8 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
         product.id,
         selectedWarehouse,
         quantity,
-        reasonText
+        reasonText,
+        askFirst ? chain.payload() : undefined
       );
 
       if (outcome === "requested") {
@@ -398,6 +410,11 @@ function StockOutPageInner({ productId = "2" }: StockOutPageProps) {
           </div>
         </div>
       </div>
+      {askFirst && (
+        <div style={{ margin: "0 0 4px" }}>
+          <ApprovalChainCard chain={chain} helpText={CHAIN_HELP_STOCK} />
+        </div>
+      )}
       <div className="page-form-actions">
         <div className="stock-out-actions">
           <button

@@ -9,6 +9,8 @@ import { LookupOption, fetchBrands, fetchCategories, fetchSuppliers, fetchWareho
 import { createProduct, NewVariantInput } from "@/features/products/products-live.api";
 import VariantImagePicker from "./VariantImagePicker";
 import { useNeedsApproval } from "@/hooks/use-needs-approval";
+import { useApprovalChain } from "@/features/requests/use-approval-chain";
+import ApprovalChainCard, { CHAIN_HELP_PRODUCT } from "@/components/requests/ApprovalChainCard";
 import SearchSelect from "@/components/ui/SearchSelect";
 
 import BackButton from "@/components/ui/BackButton";
@@ -145,6 +147,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
   const [saving, setSaving] = useState(false);
   // Staff (no PRODUCT_CREATE) send the product as a request that waits for approval.
   const askFirst = useNeedsApproval("PRODUCT_CREATE");
+  const chain = useApprovalChain(askFirst, { restrictApprovers: true });
   const [submitted, setSubmitted] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
   const [variantRows, setVariantRows] = useState<VariantDraft[]>([]);
@@ -316,6 +319,14 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
       qty = 1;
     }
 
+    if (askFirst) {
+      const chainError = chain.validate();
+      if (chainError) {
+        messageApi.error(chainError);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       await createProduct({
@@ -335,6 +346,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
         location,
         image: imageFile,
         variants: variantInputs,
+        approvers: askFirst ? chain.payload() : undefined,
       }, askFirst);
       messageApi.success(askFirst ? "Request sent for approval. The product is created once it is approved. Track it under Requests." : "Product created.");
       setTimeout(() => (onSuccess ? onSuccess() : router.push(askFirst ? "/requests" : "/products")), askFirst ? 900 : 400);
@@ -699,6 +711,7 @@ export default function AddProductPage({ onCancel, onSuccess }: AddProductPagePr
           </div>
         </div>
       </div>
+      {askFirst && <ApprovalChainCard chain={chain} helpText={CHAIN_HELP_PRODUCT} />}
       <div className="page-form-actions">
         <div className="add-product-actions">
           <button type="button" className="btn-add-product-cancel" onClick={handleCancel} disabled={saving}>

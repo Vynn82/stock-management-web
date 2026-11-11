@@ -11812,3 +11812,29 @@ button, input { font-family: inherit; }
 .theme-dark .locale-switch button.active { background: #2a2540; color: #d1bdff; box-shadow: none; }
 html[lang="km"] body { font-family: "Kantumruy Pro", "Noto Sans Khmer", Inter, sans-serif; line-height: 1.6; }
 html[lang="km"] button, html[lang="km"] input, html[lang="km"] select, html[lang="km"] textarea { font-family: inherit; }
+
+/* Approvers & Verification card (requests from Staff: stock changes, new product) */
+.apc { margin: 18px 0 4px; }
+.apc-title { margin: 0 0 10px; color: #8a8aa3; font-size: 11.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.apc-card { padding: 16px; border: 1px solid #ece9f3; border-radius: 16px; background: #fff; }
+.apc-help { margin: 0 0 14px; color: #6b7280; font-size: 12px; font-weight: 500; line-height: 1.45; }
+.apc-error { margin: 0 0 12px; color: #dc2626; font-size: 12.5px; }
+.apc-link { border: 0; padding: 0; background: none; color: #6d28d9; font: inherit; font-weight: 600; cursor: pointer; }
+.apc-row { display: grid; gap: 12px; margin-bottom: 12px; padding: 14px; border: 1px solid rgba(109,40,217,.12); border-radius: 14px; background: #f7f6fb; }
+.apc-row-head { display: flex; align-items: center; justify-content: space-between; color: #16121f; font-size: 12.5px; }
+.apc-remove { display: inline-grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 8px; background: transparent; color: #dc2626; cursor: pointer; }
+.apc-remove:hover { background: rgba(220,38,38,.08); }
+.apc-field { display: grid; gap: 6px; color: #40445a; font-size: 12px; font-weight: 600; }
+.apc-field b { color: #dc2626; }
+.apc-field select { width: 100%; height: 40px; padding: 0 10px; border: 1px solid #e4e0ef; border-radius: 10px; background: #fff; color: #16121f; font: inherit; font-size: 13px; }
+.apc-add { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 42px; border: 1px solid rgba(109,40,217,.28); border-radius: 12px; background: transparent; color: #6d28d9; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.apc-add:hover { background: #f5f3ff; }
+.theme-dark .apc-title { color: #9c99ad; }
+.theme-dark .apc-card { border-color: rgba(255,255,255,.08); background: #1c1826; }
+.theme-dark .apc-help { color: #9c99ad; }
+.theme-dark .apc-row { border-color: rgba(255,255,255,.08); background: #14111d; }
+.theme-dark .apc-row-head { color: #f3f2fa; }
+.theme-dark .apc-field { color: #c6cad4; }
+.theme-dark .apc-field select { border-color: rgba(255,255,255,.12); background: #1c1826; color: #f3f2fa; }
+.theme-dark .apc-add { border-color: rgba(167,139,250,.4); color: #c4b5fd; }
+.theme-dark .apc-add:hover { background: rgba(139,92,246,.12); }

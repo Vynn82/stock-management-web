@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { message } from "antd";
 import { REQUEST_SENT_MESSAGE, useLiveStock } from "@/features/stock/stock-live";
 import { useNeedsApproval } from "@/hooks/use-needs-approval";
+import { useApprovalChain } from "@/features/requests/use-approval-chain";
+import ApprovalChainCard, { CHAIN_HELP_STOCK } from "@/components/requests/ApprovalChainCard";
 import SearchSelect from "@/components/ui/SearchSelect";
 
 import BackButton from "@/components/ui/BackButton";
@@ -83,6 +85,7 @@ export default function StockInPage({ productId }: { productId?: string }) {
   const afterStock = currentStock + (quantity || 0);
 
   const askFirst = useNeedsApproval("STOCK_ADJUST");
+  const chain = useApprovalChain(askFirst);
 
   const handleConfirm = async () => {
     if (!product) return;
@@ -90,10 +93,18 @@ export default function StockInPage({ productId }: { productId?: string }) {
     if (variants.length > 0 && !variant) return void messageApi.error("Choose a variant.");
     if (!quantity || quantity < 1) return void messageApi.error("Enter a quantity of at least 1.");
 
+    if (askFirst) {
+      const chainError = chain.validate();
+      if (chainError) {
+        messageApi.error(chainError);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const reasonText = notes.trim() ? `${reason} — ${notes.trim()}` : reason;
-      const outcome = await live.stockIn(product, warehouseCode, quantity, reasonText, variant?.code);
+      const outcome = await live.stockIn(product, warehouseCode, quantity, reasonText, variant?.code, askFirst ? chain.payload() : undefined);
       if (outcome === "requested") {
         messageApi.success(REQUEST_SENT_MESSAGE);
         setTimeout(() => router.push("/requests"), 900);
@@ -313,6 +324,11 @@ export default function StockInPage({ productId }: { productId?: string }) {
           </div>
         </div>
       </div>
+      {askFirst && (
+        <div style={{ margin: "0 0 4px" }}>
+          <ApprovalChainCard chain={chain} helpText={CHAIN_HELP_STOCK} />
+        </div>
+      )}
       <div className="page-form-actions">
         <div className="stock-out-actions">
           <button type="button" className="stock-out-btn-cancel" onClick={() => router.push("/stock")}>

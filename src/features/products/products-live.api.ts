@@ -97,6 +97,8 @@ export interface NewProductInput {
   image?: File | null;
   /** When set (non-empty) the product is created with variants; stock is per variant. */
   variants?: NewVariantInput[];
+  /** Approval chain picked by the requester (only sent when the product goes as a request). */
+  approvers?: { userId: string; actionType: "CERTIFIER" | "APPROVER" }[];
 }
 
 export interface NewVariantInput {
@@ -158,7 +160,10 @@ export async function createProduct(input: NewProductInput, asRequest = false): 
   }
 
   const form = new FormData();
-  if (asRequest) form.append("requestType", "PRODUCT_CREATE");
+  if (asRequest) {
+    form.append("requestType", "PRODUCT_CREATE");
+    if (input.approvers && input.approvers.length > 0) form.append("approvers", JSON.stringify(input.approvers));
+  }
   form.append("product", JSON.stringify(product));
   form.append("variants", JSON.stringify(variants));
   form.append("stock", JSON.stringify(stocks));

@@ -16,6 +16,8 @@ import SearchSelect from "@/components/ui/SearchSelect";
 import { useT, useTx } from "@/lib/i18n";
 import { REQUEST_SENT_MESSAGE, type StockOutcome } from "@/features/stock/stock-live";
 import { useNeedsApproval } from "@/hooks/use-needs-approval";
+import { useApprovalChain } from "@/features/requests/use-approval-chain";
+import ApprovalChainCard, { CHAIN_HELP_STOCK } from "@/components/requests/ApprovalChainCard";
 
 export type WarehouseStock = LiveWarehouseStock;
 export type StockProduct = LiveStockProduct;
@@ -26,6 +28,15 @@ export default function StockPage() {
   const tx = useTx();
   const askStock = useNeedsApproval("STOCK_ADJUST");
   const askTransfer = useNeedsApproval("STOCK_TRANSFER");
+  const chain = useApprovalChain(askStock || askTransfer);
+  // People who must ask first pick who approves (same card as the mobile app).
+  const chainBlocked = (needed: boolean) => {
+    if (!needed) return false;
+    const problem = chain.validate();
+    if (problem) messageApi.error(problem);
+    return Boolean(problem);
+  };
+  const approversFor = (needed: boolean) => (needed ? chain.payload() : undefined);
   const live = useLiveStock();
   const { products, history } = live;
   const WAREHOUSE_LIST = useMemo(() => live.warehouses.map((w) => w.name), [live.warehouses]);
@@ -160,8 +171,9 @@ export default function StockPage() {
     const product = products.find((p) => p.id === formProduct);
     if (!product) return messageApi.error("Choose a product.");
     if (!formQuantity || formQuantity <= 0) return messageApi.error("Quantity must be greater than zero.");
+    if (chainBlocked(askStock)) return;
     return run(
-      () => live.stockIn(product, codeOf(formWarehouse), formQuantity, formReason),
+      () => live.stockIn(product, codeOf(formWarehouse), formQuantity, formReason, undefined, approversFor(askStock)),
       `Added ${formQuantity} units of ${product.name} to ${formWarehouse}.`,
     );
   };
@@ -174,8 +186,9 @@ export default function StockPage() {
     if (formQuantity > available) {
       return messageApi.error(`Insufficient stock! ${formWarehouse} only has ${available} units available.`);
     }
+    if (chainBlocked(askStock)) return;
     return run(
-      () => live.stockOut(product, codeOf(formWarehouse), formQuantity, formReason),
+      () => live.stockOut(product, codeOf(formWarehouse), formQuantity, formReason, approversFor(askStock)),
       `Dispatched ${formQuantity} units of ${product.name} from ${formWarehouse}.`,
     );
   };
@@ -189,8 +202,9 @@ export default function StockPage() {
     if (formQuantity > available) {
       return messageApi.error(`Insufficient stock at ${formWarehouse}! Only ${available} units available to transfer.`);
     }
+    if (chainBlocked(askTransfer)) return;
     return run(
-      () => live.transfer(product, codeOf(formWarehouse), codeOf(formTargetWarehouse), formQuantity, formReason),
+      () => live.transfer(product, codeOf(formWarehouse), codeOf(formTargetWarehouse), formQuantity, formReason, approversFor(askTransfer)),
       `Transferred ${formQuantity} units of ${product.name} from ${formWarehouse} to ${formTargetWarehouse}.`,
     );
   };
@@ -198,8 +212,9 @@ export default function StockPage() {
   const executeAdjustment = () => {
     const product = products.find((p) => p.id === formProduct);
     if (!product) return messageApi.error("Choose a product.");
+    if (chainBlocked(askStock)) return;
     return run(
-      () => live.setCount(product, codeOf(formWarehouse), formNewCount, formReason),
+      () => live.setCount(product, codeOf(formWarehouse), formNewCount, formReason, approversFor(askStock)),
       `Stock level for ${product.name} adjusted to ${formNewCount} units at ${formWarehouse}.`,
     );
   };
@@ -746,6 +761,11 @@ export default function StockPage() {
             />
           </div>
         </div>
+      {askStock && (
+        <div style={{ marginTop: 4 }}>
+          <ApprovalChainCard chain={chain} helpText={CHAIN_HELP_STOCK} />
+        </div>
+      )}
       </Modal>
 
       {/* MODAL 2: Stock Out */}
@@ -864,6 +884,11 @@ export default function StockPage() {
             />
           </div>
         </div>
+      {askStock && (
+        <div style={{ marginTop: 4 }}>
+          <ApprovalChainCard chain={chain} helpText={CHAIN_HELP_STOCK} />
+        </div>
+      )}
       </Modal>
 
       {/* MODAL 3: Transfer */}
@@ -1007,6 +1032,11 @@ export default function StockPage() {
             />
           </div>
         </div>
+      {askTransfer && (
+        <div style={{ marginTop: 4 }}>
+          <ApprovalChainCard chain={chain} helpText={CHAIN_HELP_STOCK} />
+        </div>
+      )}
       </Modal>
 
       {/* MODAL 4: Adjust */}
@@ -1190,6 +1220,11 @@ export default function StockPage() {
             />
           </div>
         </div>
+      {askStock && (
+        <div style={{ marginTop: 4 }}>
+          <ApprovalChainCard chain={chain} helpText={CHAIN_HELP_STOCK} />
+        </div>
+      )}
       </Modal>
 
       {/* DRAWER: History */}

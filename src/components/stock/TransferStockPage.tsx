@@ -8,6 +8,8 @@ import StockGate from "./StockGate";
 import { useStockStore, DetailedStockItem } from "@/store/stockStore";
 import { REQUEST_SENT_MESSAGE } from "@/features/stock/stock-live";
 import { useNeedsApproval } from "@/hooks/use-needs-approval";
+import { useApprovalChain } from "@/features/requests/use-approval-chain";
+import ApprovalChainCard, { CHAIN_HELP_STOCK } from "@/components/requests/ApprovalChainCard";
 import SearchSelect from "@/components/ui/SearchSelect";
 
 import BackButton from "@/components/ui/BackButton";
@@ -39,6 +41,7 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
   );
   const [submitting, setSubmitting] = useState(false);
   const askFirst = useNeedsApproval("STOCK_TRANSFER");
+  const chain = useApprovalChain(askFirst);
 
   // Available warehouses list
   const warehouseOptions = useMemo(() => {
@@ -86,6 +89,14 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
       return;
     }
 
+    if (askFirst) {
+      const chainError = chain.validate();
+      if (chainError) {
+        messageApi.error(chainError);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const outcome = await recordTransfer(
@@ -93,7 +104,8 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
         sourceWarehouse,
         targetWarehouse,
         transferQty,
-        notes.trim() || "Stock Transfer"
+        notes.trim() || "Stock Transfer",
+        askFirst ? chain.payload() : undefined
       );
       if (outcome === "requested") {
         messageApi.success(REQUEST_SENT_MESSAGE);
@@ -377,6 +389,11 @@ function TransferStockPageInner({ productId = "1" }: TransferStockPageProps) {
           </div>
         </div>
       </div>
+      {askFirst && (
+        <div style={{ margin: "0 0 4px" }}>
+          <ApprovalChainCard chain={chain} helpText={CHAIN_HELP_STOCK} />
+        </div>
+      )}
       <div className="page-form-actions">
         <div className="stock-transfer-actions">
           <button

@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { api } from "@/features/live/http";
 import { fetchCategories } from "@/features/live/lookups";
-import { LiveHistoryEntry, useLiveStock } from "@/features/stock/stock-live";
+import { LiveHistoryEntry, useLiveStock, type ChainSteps } from "@/features/stock/stock-live";
 
 /**
  * Stock data for the stock detail / adjust / stock-out / transfer / history
@@ -152,16 +152,16 @@ export function useStockStore() {
       await live.load(true);
     },
 
-    recordStockIn: (id: string, warehouse: string, qty: number, reason?: string) =>
-      live.stockIn(productOf(id), codeOf(warehouse), qty, reason ?? ""),
+    recordStockIn: (id: string, warehouse: string, qty: number, reason?: string, approvers?: ChainSteps) =>
+      live.stockIn(productOf(id), codeOf(warehouse), qty, reason ?? "", undefined, approvers),
 
-    recordStockOut: (id: string, warehouse: string, qty: number, reason?: string) =>
-      live.stockOut(productOf(id), codeOf(warehouse), qty, reason ?? ""),
+    recordStockOut: (id: string, warehouse: string, qty: number, reason?: string, approvers?: ChainSteps) =>
+      live.stockOut(productOf(id), codeOf(warehouse), qty, reason ?? "", approvers),
 
-    recordTransfer: (id: string, from: string, to: string, qty: number, reason?: string) =>
-      live.transfer(productOf(id), codeOf(from), codeOf(to), qty, reason ?? ""),
+    recordTransfer: (id: string, from: string, to: string, qty: number, reason?: string, approvers?: ChainSteps) =>
+      live.transfer(productOf(id), codeOf(from), codeOf(to), qty, reason ?? "", approvers),
 
-    recordAdjustment: (id: string, warehouse: string, newCount: number, reason?: string) =>
-      live.setCount(productOf(id), codeOf(warehouse), newCount, reason ?? ""),
+    recordAdjustment: (id: string, warehouse: string, newCount: number, reason?: string, approvers?: ChainSteps) =>
+      live.setCount(productOf(id), codeOf(warehouse), newCount, reason ?? "", approvers),
   };
 }
